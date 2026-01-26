@@ -1,0 +1,145 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Transform: AWS::Serverless-2016-10-31
+Description: >
+  IoT Face Recognition System - Serverless Backend
+  Recreates S3 Bucket, Rekognition Collection, IAM Roles, and Lambda Functions.
+
+Parameters:
+  S3BucketName:
+    Type: String
+    Default: nghi-face-recognition-bucket
+    Description: Name of the S3 bucket for tracking images
+  RekognitionCollectionId:
+    Type: String
+    Default: home-security-faces
+    Description: Name of the Rekognition Collection
+  Environment:
+    Type: String
+    Default: dev
+    AllowedValues:
+      - dev
+      - prod
+
+Resources:
+  # 1. S3 Bucket
+  FaceDataBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Ref S3BucketName
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: false
+        IgnorePublicAcls: false
+        BlockPublicPolicy: false
+        RestrictPublicBuckets: false
+      CorsConfiguration:
+        CorsRules:
+          - AllowedHeaders: ["*"]
+            AllowedMethods: ["GET", "PUT", "POST", "DELETE", "HEAD"]
+            AllowedOrigins: ["*"]
+            ExposedHeaders: ["ETag"]
+            MaxAge: 3000
+
+  BucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket: !Ref FaceDataBucket
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal: "*"
+            Action: "s3:GetObject"
+            Resource: !Sub "arn:aws:s3:::${S3BucketName}/*"
+
+  # 2. Rekognition Collection
+  FaceCollection:
+    Type: AWS::Rekognition::Collection
+    Properties:
+      CollectionId: !Ref RekognitionCollectionId
+
+  # 3. IAM Role
+  LambdaExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: HomeSecurityLambdaRole
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: IoTFaceRekognitionPolicy
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - logs:CreateLogGroup
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                Resource: "arn:aws:logs:*:*:*"
+              - Effect: Allow
+                Action:
+                  - s3:GetObject
+                  - s3:PutObject
+                  - s3:DeleteObject
+                Resource: !Sub "arn:aws:s3:::${S3BucketName}/*"
+              - Effect: Allow
+                Action:
+                  - rekognition:IndexFaces
+                  - rekognition:SearchFacesByImage
+                  - rekognition:CreateCollection
+                  - rekognition:DeleteCollection
+                Resource: "*"
+
+  # 4. Lambda Functions
+  # Note: CodeUri points to local folder. Use 'sam deploy' to package.
+  ProcessImageFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: HomeSecurity_ProcessImage
+      Runtime: python3.12
+      Handler: handler.handler
+      CodeUri: ../lambda/process_image/
+      Role: !GetAtt LambdaExecutionRole.Arn
+      Timeout: 30
+      Environment:
+        Variables:
+          REKOGNITION_COLLECTION_ID: !Ref RekognitionCollectionId
+          MONGODB_URI: !Sub "{{resolve:ssm:MONGODB_URI}}" # Or pass as Param
+      Events:
+        S3NewObject:
+          Type: S3
+          Properties:
+            Bucket: !Ref FaceDataBucket
+            Events: s3:ObjectCreated:*
+            Filter:
+              S3Key:
+                Rules:
+                  - Name: prefix
+                    Value: captures/
+                  - Name: suffix
+                    Value: .jpg
+
+  ManageFacesFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: HomeSecurity_ManageFaces
+      Runtime: python3.12
+      Handler: handler.handler
+      CodeUri: ../lambda/manage_faces/
+      Role: !GetAtt LambdaExecutionRole.Arn
+      Timeout: 30
+      Environment:
+        Variables:
+          REKOGNITION_COLLECTION_ID: !Ref RekognitionCollectionId
+          S3_BUCKET_NAME: !Ref S3BucketName
+          MONGODB_URI: !Sub "{{resolve:ssm:MONGODB_URI}}"
+
+Outputs:
+  S3BucketName:
+    Value: !Ref FaceDataBucket
+  RekognitionCollectionId:
+    Value: !Ref FaceCollection

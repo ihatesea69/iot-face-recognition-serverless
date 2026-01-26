@@ -2,10 +2,10 @@
 
 Serverless IoT solution for real-time face recognition and home security monitoring. Built with AWS Lambda, Amazon Rekognition, MongoDB, and Next.js.
 
-![Dashboard Demo](demo1.png)
+![Dashboard Demo](docs/assets/demo1.png)
 _Real-time dashboard showing detection events and device status_
 
-![Simulator Demo](demo2.png)
+![Simulator Demo](docs/assets/demo2.png)
 _Web-based simulator for testing detection pipeline without hardware_
 
 ## Overview
