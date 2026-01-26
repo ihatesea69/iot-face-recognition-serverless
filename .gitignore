@@ -1,0 +1,39 @@
+# General
+.DS_Store
+Thumbs.db
+*.log
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+env/
+venv/
+*.egg-info/
+.pytest_cache/
+
+# Node.js / Next.js
+node_modules/
+.next/
+out/
+build/
+dist/
+.vercel/
+coverage/
+
+# Environment Variables
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+*.pem
+*.key
+
+# IDEs
+.vscode/
+.idea/
+
+# OS specific
+.fsevents.cache
