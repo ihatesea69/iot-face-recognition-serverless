@@ -1,0 +1,199 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>IoT Face Recognition | Serverless Edge AI Security</title>
+    <meta
+      name="description"
+      content="Next-gen Home Security with Raspberry Pi, AWS Lambda, and Rekognition."
+    />
+
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&family=Space+Grotesk:wght@300;400;500;700&display=swap"
+      rel="stylesheet"
+    />
+
+    <!-- CSS -->
+    <link rel="stylesheet" href="css/style.css" />
+
+    <!-- Icons -->
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
+    />
+  </head>
+  <body>
+    <!-- Background Animation -->
+    <div class="bg-gradient"></div>
+    <div class="grid-overlay"></div>
+
+    <!-- Navigation -->
+    <nav class="navbar">
+      <div class="container">
+        <a href="#" class="logo">
+          <i class="fa-solid fa-shield-halved"></i> IoT<span class="highlight"
+            >Security</span
+          >
+        </a>
+        <ul class="nav-links">
+          <li><a href="#features">Features</a></li>
+          <li><a href="#architecture">Architecture</a></li>
+          <li><a href="#demo">Demo</a></li>
+          <li>
+            <a
+              href="https://github.com/ihatesea69/iot-face-recognition-serverless"
+              target="_blank"
+              class="btn-primary"
+              >View on GitHub <i class="fa-brands fa-github"></i
+            ></a>
+          </li>
+        </ul>
+      </div>
+    </nav>
+
+    <!-- Hero Section -->
+    <header class="hero">
+      <div class="container hero-content">
+        <div class="text-content">
+          <h1 class="fade-in-up">
+            Next-Gen <span class="gradient-text">Home Security</span> with
+            <br />Edge AI & Serverless
+          </h1>
+          <p class="fade-in-up delay-1">
+            Real-time Face Recognition powered by Raspberry Pi, AWS Lambda, and
+            Amazon Rekognition. Secure, Scalable, and Maintenance-free.
+          </p>
+          <div class="cta-group fade-in-up delay-2">
+            <a href="#demo" class="btn-primary glow">See It In Action</a>
+            <a href="#features" class="btn-secondary">Explore Features</a>
+          </div>
+        </div>
+        <div class="visual-content fade-in-up delay-3">
+          <div class="glass-card mockup">
+            <img src="assets/demo1.png" alt="Dashboard Preview" />
+            <div class="glow-effect"></div>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <!-- Features Grid -->
+    <section id="features" class="features section-padding">
+      <div class="container">
+        <h2 class="section-title">
+          Why Choose <span class="highlight">Serverless Security</span>?
+        </h2>
+
+        <div class="feature-grid">
+          <div class="feature-card glass-card">
+            <div class="icon"><i class="fa-solid fa-bolt"></i></div>
+            <h3>Real-time latency</h3>
+            <p>
+              Sub-2 second response time from motion detection to alert. Powered
+              by event-driven Lambda triggers.
+            </p>
+          </div>
+          <div class="feature-card glass-card">
+            <div class="icon"><i class="fa-solid fa-cloud"></i></div>
+            <h3>100% Serverless</h3>
+            <p>
+              No EC2 servers to manage. Auto-scales with traffic. Pay only for
+              what you use.
+            </p>
+          </div>
+          <div class="feature-card glass-card">
+            <div class="icon"><i class="fa-solid fa-microchip"></i></div>
+            <h3>Edge Intelligence</h3>
+            <p>
+              Raspberry Pi Client captures motion and optimizes upload bandwidth
+              intelligently.
+            </p>
+          </div>
+          <div class="feature-card glass-card">
+            <div class="icon"><i class="fa-solid fa-user-shield"></i></div>
+            <h3>Privacy First</h3>
+            <p>
+              Identity data managed securely in Rekognition with strict IAM
+              Access Policies.
+            </p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Architecture Section -->
+    <section id="architecture" class="architecture section-padding">
+      <div class="container">
+        <h2 class="section-title">
+          System <span class="highlight">Architecture</span>
+        </h2>
+        <div class="arch-diagram glass-card">
+          <img
+            src="assets/architecture-diagram.png"
+            alt="System Architecture"
+          />
+        </div>
+        <div class="tech-stack">
+          <div class="tech-item">
+            <i class="fa-brands fa-aws"></i> AWS Lambda
+          </div>
+          <div class="tech-item">
+            <i class="fa-solid fa-database"></i> MongoDB Atlas
+          </div>
+          <div class="tech-item">
+            <i class="fa-brands fa-react"></i> Next.js
+          </div>
+          <div class="tech-item">
+            <i class="fa-brands fa-python"></i> Python 3.12
+          </div>
+          <div class="tech-item">
+            <i class="fa-brands fa-raspberry-pi"></i> Raspberry Pi
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Demo Section -->
+    <section id="demo" class="demo section-padding">
+      <div class="container">
+        <h2 class="section-title">
+          Live <span class="highlight">Demo</span> Preview
+        </h2>
+        <div class="demo-wrapper">
+          <div class="demo-card glass-card">
+            <h3>Web Simulator Interface</h3>
+            <img src="assets/demo2.png" alt="Simulator Demo" />
+            <p class="caption">
+              Test the detection pipeline directly from your browser without
+              hardware.
+            </p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Footer -->
+    <footer>
+      <div class="container footer-content">
+        <p>
+          &copy; 2026 IoT Face Recognition Project. Open Source under MIT
+          License.
+        </p>
+        <div class="socials">
+          <a href="https://github.com/ihatesea69" target="_blank"
+            ><i class="fa-brands fa-github"></i
+          ></a>
+          <a href="#"><i class="fa-brands fa-twitter"></i></a>
+          <a href="#"><i class="fa-brands fa-linkedin"></i></a>
+        </div>
+      </div>
+    </footer>
+
+    <!-- Scripts -->
+    <script src="js/main.js"></script>
+  </body>
+</html>
