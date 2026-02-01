@@ -1,12 +1,12 @@
 <!doctype html>
-<html lang="en">
+<html lang="vi">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>IoT Face Recognition | Serverless Edge AI Security</title>
+    <title>IoT Face Recognition | Hệ Thống An Ninh Thông Minh</title>
     <meta
       name="description"
-      content="Next-gen Home Security with Raspberry Pi, AWS Lambda, and Rekognition."
+      content="Hệ thống an ninh nhà ở thông minh với Raspberry Pi, AWS Lambda, và Amazon Rekognition."
     />
 
     <!-- Fonts -->
@@ -40,15 +40,16 @@
           >
         </a>
         <ul class="nav-links">
-          <li><a href="#features">Features</a></li>
-          <li><a href="#architecture">Architecture</a></li>
+          <li><a href="#features">Tính năng</a></li>
+          <li><a href="#architecture">Kiến trúc</a></li>
           <li><a href="#demo">Demo</a></li>
+          <li><a href="#team">Nhóm</a></li>
           <li>
             <a
               href="https://github.com/ihatesea69/iot-face-recognition-serverless"
               target="_blank"
               class="btn-primary"
-              >View on GitHub <i class="fa-brands fa-github"></i
+              >GitHub <i class="fa-brands fa-github"></i
             ></a>
           </li>
         </ul>
@@ -60,21 +61,24 @@
       <div class="container hero-content">
         <div class="text-content">
           <h1 class="fade-in-up">
-            Next-Gen <span class="gradient-text">Home Security</span> with
-            <br />Edge AI & Serverless
+            Hệ Thống <span class="gradient-text">An Ninh Thông Minh</span>
+            <br />Nhận Diện Khuôn Mặt
           </h1>
           <p class="fade-in-up delay-1">
-            Real-time Face Recognition powered by Raspberry Pi, AWS Lambda, and
-            Amazon Rekognition. Secure, Scalable, and Maintenance-free.
+            Giám sát thời gian thực với Raspberry Pi, AWS Lambda và Amazon Rekognition. 
+            Phân biệt người quen/người lạ trong &lt;2 giây. Kiến trúc Serverless - chi phí thấp.
           </p>
           <div class="cta-group fade-in-up delay-2">
-            <a href="#demo" class="btn-primary glow">See It In Action</a>
-            <a href="#features" class="btn-secondary">Explore Features</a>
+            <a href="#demo" class="btn-primary glow">Xem Demo</a>
+            <a href="#features" class="btn-secondary">Khám phá</a>
           </div>
+          <p class="project-info fade-in-up delay-2">
+            <strong>Đồ án IoT</strong> - Trường ĐH Ngoại ngữ - Tin học TP.HCM
+          </p>
         </div>
         <div class="visual-content fade-in-up delay-3">
           <div class="glass-card mockup">
-            <img src="assets/demo1.png" alt="Dashboard Preview" />
+            <img src="assets/MainDashboard.png" alt="Dashboard Preview" />
             <div class="glow-effect"></div>
           </div>
         </div>
@@ -85,40 +89,55 @@
     <section id="features" class="features section-padding">
       <div class="container">
         <h2 class="section-title">
-          Why Choose <span class="highlight">Serverless Security</span>?
+          Tại sao chọn <span class="highlight">Serverless Security</span>?
         </h2>
 
         <div class="feature-grid">
           <div class="feature-card glass-card">
             <div class="icon"><i class="fa-solid fa-bolt"></i></div>
-            <h3>Real-time latency</h3>
+            <h3>Phản hồi &lt;2 giây</h3>
             <p>
-              Sub-2 second response time from motion detection to alert. Powered
-              by event-driven Lambda triggers.
+              Từ lúc phát hiện chuyển động đến cảnh báo chỉ trong 2 giây. 
+              Event-driven Lambda xử lý tức thì.
             </p>
           </div>
           <div class="feature-card glass-card">
             <div class="icon"><i class="fa-solid fa-cloud"></i></div>
             <h3>100% Serverless</h3>
             <p>
-              No EC2 servers to manage. Auto-scales with traffic. Pay only for
-              what you use.
+              Không cần quản lý server. Tự động scale theo traffic. 
+              Chỉ trả tiền khi sử dụng.
             </p>
           </div>
           <div class="feature-card glass-card">
             <div class="icon"><i class="fa-solid fa-microchip"></i></div>
             <h3>Edge Intelligence</h3>
             <p>
-              Raspberry Pi Client captures motion and optimizes upload bandwidth
-              intelligently.
+              Raspberry Pi với cảm biến PIR phát hiện chuyển động, 
+              tối ưu bandwidth khi upload.
             </p>
           </div>
           <div class="feature-card glass-card">
             <div class="icon"><i class="fa-solid fa-user-shield"></i></div>
-            <h3>Privacy First</h3>
+            <h3>Bảo mật cao</h3>
             <p>
-              Identity data managed securely in Rekognition with strict IAM
-              Access Policies.
+              Dữ liệu khuôn mặt được quản lý an toàn trong Rekognition 
+              với IAM Access Policies nghiêm ngặt.
+            </p>
+          </div>
+          <div class="feature-card glass-card">
+            <div class="icon"><i class="fa-solid fa-users"></i></div>
+            <h3>Phân biệt người quen/lạ</h3>
+            <p>
+              Tự động nhận diện người đã đăng ký và cảnh báo khi phát hiện người lạ xâm nhập.
+            </p>
+          </div>
+          <div class="feature-card glass-card">
+            <div class="icon"><i class="fa-solid fa-coins"></i></div>
+            <h3>Chi phí thấp</h3>
+            <p>
+              Mô hình pay-per-use: Chi phí gần như bằng 0 khi không có sự kiện. 
+              Phù hợp gia đình.
             </p>
           </div>
         </div>
@@ -129,11 +148,11 @@
     <section id="architecture" class="architecture section-padding">
       <div class="container">
         <h2 class="section-title">
-          System <span class="highlight">Architecture</span>
+          Kiến trúc <span class="highlight">Hệ thống</span>
         </h2>
         <div class="arch-diagram glass-card">
           <img
-            src="assets/architecture-diagram.png"
+            src="assets/System_Architecture.jpg"
             alt="System Architecture"
           />
         </div>
@@ -153,6 +172,9 @@
           <div class="tech-item">
             <i class="fa-brands fa-raspberry-pi"></i> Raspberry Pi
           </div>
+          <div class="tech-item">
+            <i class="fa-solid fa-brain"></i> Rekognition AI
+          </div>
         </div>
       </div>
     </section>
@@ -161,16 +183,55 @@
     <section id="demo" class="demo section-padding">
       <div class="container">
         <h2 class="section-title">
-          Live <span class="highlight">Demo</span> Preview
+          Giao diện <span class="highlight">Demo</span>
         </h2>
         <div class="demo-wrapper">
           <div class="demo-card glass-card">
-            <h3>Web Simulator Interface</h3>
-            <img src="assets/demo2.png" alt="Simulator Demo" />
+            <h3>Dashboard - Giám sát thời gian thực</h3>
+            <img src="assets/MainDashboard.png" alt="Main Dashboard" />
             <p class="caption">
-              Test the detection pipeline directly from your browser without
-              hardware.
+              Giao diện chính hiển thị danh sách các sự kiện phát hiện với thông tin chi tiết.
             </p>
+          </div>
+          <div class="demo-card glass-card">
+            <h3>Nhận diện người quen</h3>
+            <img src="assets/GiaoDienNguoiQuen.png" alt="Known Person Detection" />
+            <p class="caption">
+              Hiển thị thông tin khi nhận diện thành công người đã đăng ký trong hệ thống.
+            </p>
+          </div>
+          <div class="demo-card glass-card">
+            <h3>Simulate - Mô phỏng nhận diện</h3>
+            <img src="assets/GiaoDienSimulateQuaTrinhNhanDien.png" alt="Simulator Demo" />
+            <p class="caption">
+              Giao diện test quá trình nhận diện trực tiếp từ browser mà không cần phần cứng.
+            </p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Team Section -->
+    <section id="team" class="team section-padding">
+      <div class="container">
+        <h2 class="section-title">
+          Nhóm <span class="highlight">Thực hiện</span>
+        </h2>
+        <div class="team-info glass-card">
+          <div class="school-info">
+            <h3><i class="fa-solid fa-university"></i> Trường Đại học Ngoại ngữ - Tin học TP.HCM</h3>
+            <p>Khoa Công nghệ Thông tin</p>
+            <p><strong>Đồ án: Internet of Things</strong></p>
+          </div>
+          <div class="members">
+            <h4>Thành viên nhóm:</h4>
+            <ul>
+              <li><i class="fa-solid fa-user"></i> Đỗ Nguyễn Phương Anh - 23DH114197</li>
+              <li><i class="fa-solid fa-user"></i> Nguyễn Huỳnh Tấn Huy - 23DH111228</li>
+              <li><i class="fa-solid fa-user"></i> Danh Hoàng Hiếu Nghị - 23DH112270</li>
+            </ul>
+            <h4>Giảng viên hướng dẫn:</h4>
+            <p><i class="fa-solid fa-chalkboard-teacher"></i> ThS. Nguyễn Tuấn Anh</p>
           </div>
         </div>
       </div>
@@ -180,15 +241,12 @@
     <footer>
       <div class="container footer-content">
         <p>
-          &copy; 2026 IoT Face Recognition Project. Open Source under MIT
-          License.
+          &copy; 2026 IoT Face Recognition Project - ĐH Ngoại ngữ - Tin học TP.HCM
         </p>
         <div class="socials">
-          <a href="https://github.com/ihatesea69" target="_blank"
+          <a href="https://github.com/ihatesea69/iot-face-recognition-serverless" target="_blank"
             ><i class="fa-brands fa-github"></i
           ></a>
-          <a href="#"><i class="fa-brands fa-twitter"></i></a>
-          <a href="#"><i class="fa-brands fa-linkedin"></i></a>
         </div>
       </div>
     </footer>

@@ -298,8 +298,14 @@ body {
   justify-content: center;
 }
 
+.demo-wrapper {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+  gap: 30px;
+}
+
 .demo-card {
-  max-width: 800px;
+  max-width: 100%;
   text-align: center;
 }
 .demo-card img {
@@ -307,6 +313,69 @@ body {
   border-radius: 10px;
   margin: 20px 0;
   border: 1px solid var(--glass-border);
+}
+
+.demo-card h3 {
+  color: var(--accent-cyan);
+  margin-bottom: 10px;
+}
+
+/* Team Section */
+.team-info {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 40px;
+  padding: 40px;
+}
+
+.school-info h3 {
+  color: var(--accent-cyan);
+  margin-bottom: 15px;
+  font-size: 1.3rem;
+}
+
+.school-info p {
+  color: var(--text-secondary);
+  margin-bottom: 8px;
+}
+
+.members h4 {
+  color: var(--text-primary);
+  margin-bottom: 15px;
+  margin-top: 20px;
+}
+
+.members h4:first-child {
+  margin-top: 0;
+}
+
+.members ul {
+  list-style: none;
+}
+
+.members li {
+  color: var(--text-secondary);
+  margin-bottom: 10px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.members li i, .members p i {
+  color: var(--accent-purple);
+}
+
+.members > p {
+  color: var(--text-secondary);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.project-info {
+  margin-top: 20px;
+  color: var(--text-secondary);
+  font-size: 0.9rem;
 }
 
 /* Animations */
@@ -377,5 +446,11 @@ footer {
   }
   .text-content h1 {
     font-size: 3rem;
+  }
+  .team-info {
+    grid-template-columns: 1fr;
+  }
+  .demo-wrapper {
+    grid-template-columns: 1fr;
   }
 }

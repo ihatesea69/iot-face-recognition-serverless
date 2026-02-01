@@ -1,88 +1,162 @@
-# IoT Face Recognition System
+# 🏠 IoT Face Recognition System
 
-Serverless IoT solution for real-time face recognition and home security monitoring. Built with AWS Lambda, Amazon Rekognition, MongoDB, and Next.js.
+> **Đồ án Internet of Things** - Trường Đại học Ngoại ngữ - Tin học TP.HCM
 
-![Dashboard Demo](docs/assets/demo1.png)
-_Real-time dashboard showing detection events and device status_
+Hệ thống an ninh nhà ở thông minh sử dụng nhận diện khuôn mặt với kiến trúc Serverless. Xây dựng với AWS Lambda, Amazon Rekognition, MongoDB Atlas và Next.js.
 
-![Simulator Demo](docs/assets/demo2.png)
-_Web-based simulator for testing detection pipeline without hardware_
+[![Live Demo](https://img.shields.io/badge/🌐_Live_Demo-GitHub_Pages-blue)](https://ihatesea69.github.io/iot-face-recognition-serverless/)
+[![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 
-## Overview
+## 👥 Nhóm thực hiện
 
-This project implements a scalable, serverless pipeline for processing image data from edge devices (Raspberry Pi). It utilizes AWS managed services to ensure high availability and low maintenance overhead. The system detects motion, captures facial imagery, indexes known identities, and alerts on strangers in real-time.
+| Họ và tên | MSSV |
+|-----------|------|
+| Đỗ Nguyễn Phương Anh | 23DH114197 |
+| Nguyễn Huỳnh Tấn Huy | 23DH111228 |
+| Danh Hoàng Hiếu Nghị | 23DH112270 |
 
-## Architecture
+**Giảng viên hướng dẫn:** ThS. Nguyễn Tuấn Anh
 
-The system follows an event-driven serverless architecture:
+---
 
-1.  **Edge Layer**: Raspberry Pi (or Web Simulator) captures images upon motion detection and uploads to **Amazon S3**.
-2.  **Event Layer**: S3 Event Notifications trigger **AWS Lambda** functions asynchronously.
-3.  **Processing Layer**:
-    - **ProcessImage**: Calls **Amazon Rekognition** to detect and match faces against a collection.
-    - **ManageFaces**: Handles API requests for indexing new identities and generating presigned URLs.
-4.  **Data Layer**: Metadata and detection logs are stored in **MongoDB Atlas**.
-5.  **Presentation Layer**: A **Next.js** dashboard provides real-time monitoring via SWR polling and manages identity registration.
+## 📸 Screenshots
 
-## Features
+### Dashboard chính - Giám sát thời gian thực
+![Main Dashboard](docs/assets/MainDashboard.png)
+*Giao diện hiển thị danh sách các sự kiện phát hiện với thông tin chi tiết*
 
-- **Real-time Recognition**: Instant processing of uploaded images with latency under 2 seconds.
-- **Identity Management**: Web interface for registering "Known Persons" directly to the Rekognition Collection.
-- **Stranger Detection**: Automatic classification and alerting for unrecognized faces.
-- **Edge Simulation**: Integrated web-based simulator to test the full pipeline using a distinct webcam device.
-- **Infrastructure as Code**: Automated Python scripts for provisioning AWS resources (IAM Roles, S3 Buckets, Lambda Functions, Triggers).
+### Nhận diện người quen
+![Known Person](docs/assets/GiaoDienNguoiQuen.png)
+*Hiển thị thông tin khi nhận diện thành công người đã đăng ký*
 
-## Technology Stack
+### Simulate - Mô phỏng nhận diện
+![Simulator](docs/assets/GiaoDienSimulateQuaTrinhNhanDien.png)
+*Test quá trình nhận diện từ browser mà không cần phần cứng*
 
-- **Cloud**: AWS Lambda, Amazon S3, Amazon Rekognition, AWS IAM.
-- **Database**: MongoDB Atlas.
-- **Frontend**: Next.js 14 (App Router), Tailwind CSS, SWR.
-- **Edge/Backend**: Python 3.12 (Boto3), Node.js (AWS SDK).
+---
 
-## Installation
+## 🎯 Tổng quan
 
-### Prerequisites
+Dự án xây dựng hệ thống an ninh nhà ở thông minh với khả năng:
+- **Phát hiện chuyển động** qua cảm biến PIR
+- **Nhận diện khuôn mặt** với Amazon Rekognition
+- **Phân biệt người quen/người lạ** trong thời gian thực (<2 giây)
+- **Cảnh báo** khi phát hiện người lạ xâm nhập
+- **Kiến trúc Serverless** - chi phí thấp, tự động scale
 
-- AWS Account with valid credentials configured locally.
-- MongoDB Atlas connection string.
-- Node.js 18+ and Python 3.10+.
+## 🏗️ Kiến trúc hệ thống
 
-### Infrastructure Setup
+![System Architecture](docs/assets/System_Architecture.jpg)
 
-The project includes automation scripts to provision the required AWS environment in `us-east-1`.
+Hệ thống theo mô hình **Event-Driven Serverless Architecture**:
+
+1. **Edge Layer**: Raspberry Pi + cảm biến PIR phát hiện chuyển động, chụp ảnh và upload lên **Amazon S3**
+2. **Event Layer**: S3 Event Notifications trigger **AWS Lambda** tự động
+3. **Processing Layer**:
+   - `ProcessImage`: Gọi **Amazon Rekognition** để nhận diện và so sánh khuôn mặt
+   - `ManageFaces`: Xử lý đăng ký khuôn mặt mới và tạo presigned URLs
+4. **Data Layer**: Lưu trữ metadata và logs trong **MongoDB Atlas**
+5. **Presentation Layer**: **Next.js** Dashboard với real-time polling (SWR)
+
+## ✨ Tính năng chính
+
+| Tính năng | Mô tả |
+|-----------|-------|
+| 🚀 **Phản hồi <2 giây** | Từ phát hiện chuyển động đến cảnh báo |
+| ☁️ **100% Serverless** | Không cần quản lý server, tự động scale |
+| 💰 **Chi phí thấp** | Pay-per-use, gần như miễn phí khi idle |
+| 🔒 **Bảo mật cao** | IAM policies nghiêm ngặt, dữ liệu mã hóa |
+| 👤 **Quản lý danh tính** | Đăng ký/xóa người quen qua web interface |
+| 🎭 **Phát hiện người lạ** | Tự động cảnh báo khi phát hiện stranger |
+| 🧪 **Web Simulator** | Test pipeline mà không cần hardware |
+
+## 🛠️ Technology Stack
+
+### Cloud Services
+- **AWS Lambda** - Serverless compute
+- **Amazon S3** - Object storage
+- **Amazon Rekognition** - Face detection & recognition AI
+- **AWS IAM** - Security & access management
+
+### Database
+- **MongoDB Atlas** - Cloud database
+
+### Frontend
+- **Next.js 14** (App Router)
+- **Tailwind CSS**
+- **SWR** - Data fetching
+
+### Edge/Backend
+- **Python 3.12** (Boto3)
+- **Raspberry Pi 4**
+- **PIR Sensor** (HC-SR501)
+
+## 📦 Cài đặt
+
+### Yêu cầu
+- AWS Account với credentials đã cấu hình
+- MongoDB Atlas connection string
+- Node.js 18+ và Python 3.10+
+
+### 1. Triển khai Infrastructure
 
 ```bash
-# Install Python dependencies
+# Cài đặt dependencies
 pip install -r infrastructure/requirements.txt
 
-# Provision S3 and Rekognition Collection
+# Provision S3 và Rekognition Collection
 python infrastructure/setup_aws.py
 
-# Deploy Lambda Functions and API Gateways
+# Deploy Lambda Functions
 python infrastructure/deploy_backend.py
 ```
 
-### Dashboard Setup
+### 2. Chạy Dashboard
 
 ```bash
 cd dashboard
 npm install
 
-# Configure environment variables
-# Create a .env.local file based on .env.example with your MongoDB URI and Lambda URLs
+# Tạo file .env.local với MongoDB URI và Lambda URLs
+cp .env.example .env.local
 
 npm run dev
 ```
 
-## Usage
+### 3. Cấu hình Raspberry Pi (Optional)
 
-1.  **Registering Identities**: Access the dashboard at `http://localhost:3000/faces`. Upload clear facial images to index them as known persons.
-2.  **Simulation**: Use the Simulator tab at `http://localhost:3000/simulate` to capture live images from your webcam.
-3.  **Monitoring**: View the main dashboard to see a live feed of detection events classified as "Known" or "Stranger".
+```bash
+cd src/rpi_client
+pip install -r requirements.txt
 
-## Project Structure
+# Cấu hình config.py với AWS credentials
+python main.py
+```
 
-- `infrastructure/`: IaC scripts for AWS deployment.
-- `src/rpi_client/`: Python client for Raspberry Pi hardware integration.
-- `lambda/`: Serverless function code (ProcessImage, ManageFaces).
-- `dashboard/`: Next.js web application source code.
+## 📂 Cấu trúc dự án
+
+```
+├── infrastructure/     # IaC scripts cho AWS
+├── src/rpi_client/     # Python client cho Raspberry Pi
+├── lambda/             # AWS Lambda functions
+│   ├── process_image/  # Xử lý nhận diện khuôn mặt
+│   └── manage_faces/   # API quản lý danh tính
+├── dashboard/          # Next.js web application
+└── docs/               # GitHub Pages landing page
+```
+
+## 🚀 Sử dụng
+
+1. **Đăng ký khuôn mặt**: Truy cập `/faces`, upload ảnh và nhập tên
+2. **Mô phỏng**: Dùng `/simulate` để test với webcam
+3. **Giám sát**: Xem dashboard chính để theo dõi các sự kiện
+
+## 📄 License
+
+MIT License - Xem file [LICENSE](LICENSE) để biết thêm chi tiết.
+
+---
+
+<p align="center">
+  <strong>🎓 Đồ án IoT - ĐH Ngoại ngữ - Tin học TP.HCM - 2026</strong>
+</p>
