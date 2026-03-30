@@ -9,7 +9,6 @@ interface DetectionCardProps {
 export default function DetectionCard({ event }: DetectionCardProps) {
   const isStranger = event.detection.type === "stranger";
   const isKnown = event.detection.type === "known";
-  const noFace = event.detection.type === "no_face";
 
   const formatTime = (date: Date | string) => {
     return new Date(date).toLocaleString("vi-VN", {
@@ -56,9 +55,14 @@ export default function DetectionCard({ event }: DetectionCardProps) {
 
       <div className="p-4">
         <div className="flex items-center justify-between mb-2">
-          <span className="text-sm text-gray-600">
-            {formatTime(event.timestamp)}
-          </span>
+          <div className="flex flex-col">
+            <span className="text-sm text-gray-600">
+              {formatTime(event.timestamp)}
+            </span>
+            <span className="text-xs text-gray-500 font-mono">
+              Device: {event.device_id || "unknown"}
+            </span>
+          </div>
           {event.detection.confidence > 0 && (
             <span className="text-sm font-medium text-gray-700">
               {event.detection.confidence.toFixed(1)}%

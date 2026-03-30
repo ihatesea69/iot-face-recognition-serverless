@@ -1,21 +1,29 @@
-import { RekognitionClient, IndexFacesCommand } from "@aws-sdk/client-rekognition";
+import {
+  IndexFacesCommand,
+  RekognitionClient,
+  type RekognitionClientConfig,
+} from "@aws-sdk/client-rekognition";
 import { connectToDatabase } from "@/lib/mongodb";
 import { NextResponse } from "next/server";
 
-// Initialize Rekognition Client
-// Configure Rekognition Client
-const clientConfig: any = {
-  region: process.env.AWS_REGION || "us-east-1",
-};
-
-if (process.env.AWS_ACCESS_KEY_ID && process.env.AWS_SECRET_ACCESS_KEY) {
-  clientConfig.credentials = {
-    accessKeyId: process.env.AWS_ACCESS_KEY_ID,
-    secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
-  };
+function getAwsRegion() {
+  return process.env.APP_AWS_REGION || process.env.AWS_REGION || process.env.AWS_DEFAULT_REGION || "ap-southeast-1";
 }
 
-const rekognition = new RekognitionClient(clientConfig);
+function getRekognitionClient() {
+  const clientConfig: RekognitionClientConfig = {
+    region: getAwsRegion(),
+  };
+
+  if (process.env.AWS_ACCESS_KEY_ID && process.env.AWS_SECRET_ACCESS_KEY) {
+    clientConfig.credentials = {
+      accessKeyId: process.env.AWS_ACCESS_KEY_ID,
+      secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
+    };
+  }
+
+  return new RekognitionClient(clientConfig);
+}
 
 const COLLECTION_ID = process.env.REKOGNITION_COLLECTION_ID || "home-security-faces";
 const BUCKET_NAME = process.env.S3_BUCKET_NAME || "nghi-face-recognition-bucket";
@@ -29,6 +37,9 @@ export async function POST(request: Request) {
     }
 
     console.log(`Indexing face for ${name} from ${s3_key}`);
+    console.log(`Using region ${getAwsRegion()} and bucket ${BUCKET_NAME}`);
+
+    const rekognition = getRekognitionClient();
 
     // 1. Index Face in Rekognition
     const command = new IndexFacesCommand({

@@ -5,6 +5,7 @@ import { getPresignedUrl, uploadToS3 } from "@/lib/api";
 import DetectionCard from "@/components/DetectionCard";
 import useSWR from "swr";
 import { DetectionEvent } from "@/lib/mongodb";
+import Link from "next/link";
 
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
@@ -98,7 +99,9 @@ export default function SimulatorPage() {
            <h1 className="text-2xl font-bold">Web Simulator</h1>
            <p className="text-gray-400">Giả lập IoT Device ngay trên trình duyệt</p>
         </div>
-        <a href="/" className="px-4 py-2 bg-white/10 rounded-lg hover:bg-white/20">Quay lại Dashboard</a>
+        <Link href="/" className="px-4 py-2 bg-white/10 rounded-lg hover:bg-white/20">
+          Quay lại Dashboard
+        </Link>
       </header>
       
       <div className="max-w-4xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-8">

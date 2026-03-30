@@ -3,6 +3,7 @@
 import useSWR from "swr";
 import { DetectionEvent } from "@/lib/mongodb";
 import { useState } from "react";
+import Link from "next/link";
 
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
@@ -56,9 +57,9 @@ export default function AlertsPage() {
         <div className="max-w-7xl mx-auto px-6 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
-              <a href="/" className="text-gray-400 hover:text-white transition-colors">
+              <Link href="/" className="text-gray-400 hover:text-white transition-colors">
                 ← Quay lại
-              </a>
+              </Link>
               <h1 className="text-xl font-bold">Lịch sử phát hiện</h1>
             </div>
             <button

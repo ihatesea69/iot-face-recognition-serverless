@@ -4,6 +4,7 @@ import useSWR from "swr";
 import { KnownPerson } from "@/lib/mongodb";
 import { useState } from "react";
 import { getPresignedUrl, uploadToS3 } from "@/lib/api";
+import Link from "next/link";
 
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
@@ -49,9 +50,10 @@ export default function FacesPage() {
       setNewPersonName("");
       setSelectedFile(null);
       setShowAddForm(false);
-    } catch (err: any) {
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Vui lòng thử lại";
       console.error("Failed to add face:", err);
-      alert(`Lỗi: ${err.message || "Vui lòng thử lại"}`);
+      alert(`Lỗi: ${message}`);
     } finally {
       setIsSubmitting(false);
     }
@@ -78,9 +80,9 @@ export default function FacesPage() {
         <div className="max-w-7xl mx-auto px-6 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
-              <a href="/" className="text-gray-400 hover:text-white transition-colors">
+              <Link href="/" className="text-gray-400 hover:text-white transition-colors">
                 ← Quay lại
-              </a>
+              </Link>
               <h1 className="text-xl font-bold">Quản lý người quen</h1>
             </div>
             <button

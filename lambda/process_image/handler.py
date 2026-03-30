@@ -53,6 +53,14 @@ def search_face(bucket: str, key: str) -> dict:
         return {"FaceMatches": [], "Error": str(e)}
 
 
+def extract_device_id(s3_key: str) -> str:
+    """Extract the logical device ID from captures/<device_id>/... keys."""
+    parts = s3_key.split("/")
+    if len(parts) >= 3 and parts[0] == "captures" and parts[1]:
+        return parts[1]
+    return "unknown"
+
+
 def handler(event, context):
     """Lambda handler for S3 trigger."""
     print(f"Event: {json.dumps(event)}")
@@ -97,6 +105,7 @@ def handler(event, context):
         "image_url": image_url,
         "s3_bucket": bucket,
         "s3_key": key,
+        "device_id": extract_device_id(key),
         "detection": detection_result,
         "processed_at": datetime.utcnow(),
     }

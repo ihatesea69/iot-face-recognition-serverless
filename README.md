@@ -38,7 +38,7 @@ Hệ thống an ninh nhà ở thông minh sử dụng nhận diện khuôn mặt
 ## 🎯 Tổng quan
 
 Dự án xây dựng hệ thống an ninh nhà ở thông minh với khả năng:
-- **Phát hiện chuyển động** qua cảm biến PIR
+- **Thu nhận hình ảnh** từ camera trên thiết bị biên
 - **Nhận diện khuôn mặt** với Amazon Rekognition
 - **Phân biệt người quen/người lạ** trong thời gian thực (<2 giây)
 - **Cảnh báo** khi phát hiện người lạ xâm nhập
@@ -50,7 +50,7 @@ Dự án xây dựng hệ thống an ninh nhà ở thông minh với khả năng
 
 Hệ thống theo mô hình **Event-Driven Serverless Architecture**:
 
-1. **Edge Layer**: Raspberry Pi + cảm biến PIR phát hiện chuyển động, chụp ảnh và upload lên **Amazon S3**
+1. **Edge Layer**: Raspberry Pi 3 Model B+ điều khiển camera, chụp ảnh và upload lên **Amazon S3**
 2. **Event Layer**: S3 Event Notifications trigger **AWS Lambda** tự động
 3. **Processing Layer**:
    - `ProcessImage`: Gọi **Amazon Rekognition** để nhận diện và so sánh khuôn mặt
@@ -62,7 +62,7 @@ Hệ thống theo mô hình **Event-Driven Serverless Architecture**:
 
 | Tính năng | Mô tả |
 |-----------|-------|
-| 🚀 **Phản hồi <2 giây** | Từ phát hiện chuyển động đến cảnh báo |
+| 🚀 **Phản hồi <2 giây** | Từ lúc ghi nhận ảnh đến khi có kết quả cảnh báo |
 | ☁️ **100% Serverless** | Không cần quản lý server, tự động scale |
 | 💰 **Chi phí thấp** | Pay-per-use, gần như miễn phí khi idle |
 | 🔒 **Bảo mật cao** | IAM policies nghiêm ngặt, dữ liệu mã hóa |
@@ -88,8 +88,9 @@ Hệ thống theo mô hình **Event-Driven Serverless Architecture**:
 
 ### Edge/Backend
 - **Python 3.12** (Boto3)
-- **Raspberry Pi 4**
-- **PIR Sensor** (HC-SR501)
+- **Raspberry Pi 3 Model B+** (RAM 1GB)
+- **Adafruit PiTFT Plus 3.5"** (480x320 resistive touchscreen)
+- **Camera tương thích Raspberry Pi**
 
 ## 📦 Cài đặt
 

@@ -1,23 +1,28 @@
-import { S3Client } from "@aws-sdk/client-s3";
+import { S3Client, type S3ClientConfig } from "@aws-sdk/client-s3";
 import { createPresignedPost } from "@aws-sdk/s3-presigned-post";
 import { NextResponse } from "next/server";
 import { v4 as uuidv4 } from "uuid";
 
-// Configure S3 Client
-const clientConfig: any = {
-  region: process.env.AWS_REGION || "us-east-1",
-};
-
-// Only add credentials if explicitly provided (for Vercel/Production)
-// Otherwise let AWS SDK find them (Default Chain -> SSO/Profile for Local)
-if (process.env.AWS_ACCESS_KEY_ID && process.env.AWS_SECRET_ACCESS_KEY) {
-  clientConfig.credentials = {
-    accessKeyId: process.env.AWS_ACCESS_KEY_ID,
-    secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
-  };
+function getAwsRegion() {
+  return process.env.APP_AWS_REGION || process.env.AWS_REGION || process.env.AWS_DEFAULT_REGION || "ap-southeast-1";
 }
 
-const s3Client = new S3Client(clientConfig);
+// Create S3 client on demand to ensure env vars are read correctly
+function getS3Client() {
+  const region = getAwsRegion();
+  console.log("Creating S3 client with region:", region);
+  
+  const clientConfig: S3ClientConfig = { region };
+
+  if (process.env.AWS_ACCESS_KEY_ID && process.env.AWS_SECRET_ACCESS_KEY) {
+    clientConfig.credentials = {
+      accessKeyId: process.env.AWS_ACCESS_KEY_ID,
+      secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
+    };
+  }
+
+  return new S3Client(clientConfig);
+}
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
@@ -27,9 +32,12 @@ export async function GET(request: Request) {
   const prefix = useCase === "simulate" ? "captures/web-simulator" : "faces";
   const ext = fileType.split("/")[1] === "jpeg" ? "jpg" : fileType.split("/")[1];
   const key = `${prefix}/${uuidv4()}.${ext}`;
-  const bucketName = process.env.S3_BUCKET_NAME || "nghi-face-recognition-bucket";
+  const bucketName = process.env.S3_BUCKET_NAME || "nghi-iot-face-bucket-2026";
+  
+  console.log("Using bucket:", bucketName, "region:", getAwsRegion());
 
   try {
+    const s3Client = getS3Client();
     const { url, fields } = await createPresignedPost(s3Client, {
       Bucket: bucketName,
       Key: key,

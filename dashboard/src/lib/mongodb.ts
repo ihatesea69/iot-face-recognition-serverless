@@ -30,6 +30,7 @@ export interface DetectionEvent {
   image_url: string;
   s3_bucket: string;
   s3_key: string;
+  device_id?: string;
   detection: {
     type: "known" | "stranger" | "no_face";
     person_id?: string;
@@ -45,4 +46,18 @@ export interface KnownPerson {
   face_id: string;
   s3_key: string;
   registered_at: Date;
+}
+
+export interface DeviceStatus {
+  _id: string;
+  device_id: string;
+  status: "online" | "degraded";
+  capture_interval_sec?: number;
+  camera_device?: string;
+  last_capture_at?: Date | null;
+  last_upload_ok_at?: Date | null;
+  last_error?: string | null;
+  last_seen: Date;
+  updated_at?: Date;
+  is_online?: boolean;
 }

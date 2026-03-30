@@ -2,6 +2,9 @@
 .DS_Store
 Thumbs.db
 *.log
+.omx/
+output/
+tmp/
 
 # Python
 __pycache__/
@@ -22,6 +25,10 @@ dist/
 .vercel/
 coverage/
 
+# AWS / SAM
+infrastructure/.aws-sam/
+infrastructure/samconfig.toml
+
 # Environment Variables
 .env
 .env.local
@@ -37,3 +44,25 @@ coverage/
 
 # OS specific
 .fsevents.cache
+
+# Local docs and generated report artifacts
+docs/bao_cao_iot.aux
+docs/bao_cao_iot.log
+docs/bao_cao_iot.out
+docs/bao_cao_iot.pdf
+docs/bao_cao_iot.tex
+docs/bao_cao_iot.toc
+docs/Proposal_IOT.pdf
+
+# Local/manual media exports
+/image.jpg
+/image_from_pi.jpg
+/GiaoDienNguoiQuen.png
+/GiaoDienSimulateQuaTrinhNhanDien.png
+/MainDashboard.png
+/System Architecture.jpg
+/Phuong Anh - Huy - Nghi.docx
+/docs/GiaoDienNguoiQuen.png
+/docs/GiaoDienSimulateQuaTrinhNhanDien.png
+/docs/MainDashboard.png
+/docs/System_Architecture.jpg

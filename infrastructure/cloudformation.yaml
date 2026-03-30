@@ -1,36 +1,59 @@
 AWSTemplateFormatVersion: "2010-09-09"
 Transform: AWS::Serverless-2016-10-31
 Description: >
-  IoT Face Recognition System - Serverless Backend
-  Recreates S3 Bucket, Rekognition Collection, IAM Roles, and Lambda Functions.
+  IoT Face Recognition System - Complete Serverless Backend
+  Includes: S3 Bucket, Rekognition Collection, IAM Roles, Lambda Functions with triggers and public URLs.
+  
+  Deploy with: sam deploy --guided
+  Delete with: sam delete --stack-name <stack-name>
 
+# ==============================================================================
+# PARAMETERS
+# ==============================================================================
 Parameters:
   S3BucketName:
     Type: String
     Default: nghi-face-recognition-bucket
-    Description: Name of the S3 bucket for tracking images
+    Description: Name of the S3 bucket for storing captured images
+
   RekognitionCollectionId:
     Type: String
     Default: home-security-faces
-    Description: Name of the Rekognition Collection
+    Description: Name of the Rekognition Face Collection
+
+  MongoDBUri:
+    Type: String
+    NoEcho: true
+    Description: MongoDB Atlas connection string (stored securely)
+
   Environment:
     Type: String
     Default: dev
     AllowedValues:
       - dev
       - prod
+    Description: Deployment environment
 
+# ==============================================================================
+# RESOURCES
+# ==============================================================================
 Resources:
-  # 1. S3 Bucket
+
+  # ============================================================================
+  # 1. S3 BUCKET - Stores captured images from edge devices
+  # ============================================================================
   FaceDataBucket:
     Type: AWS::S3::Bucket
+    DeletionPolicy: Delete
     Properties:
       BucketName: !Ref S3BucketName
+      # Allow public access for image viewing on dashboard
       PublicAccessBlockConfiguration:
         BlockPublicAcls: false
         IgnorePublicAcls: false
         BlockPublicPolicy: false
         RestrictPublicBuckets: false
+      # CORS for web uploads via presigned URLs
       CorsConfiguration:
         CorsRules:
           - AllowedHeaders: ["*"]
@@ -38,7 +61,15 @@ Resources:
             AllowedOrigins: ["*"]
             ExposedHeaders: ["ETag"]
             MaxAge: 3000
+      # Auto-delete old captures after 30 days (cost saving)
+      LifecycleConfiguration:
+        Rules:
+          - Id: DeleteOldCaptures
+            Status: Enabled
+            Prefix: captures/
+            ExpirationInDays: 30
 
+  # S3 Bucket Policy - Public read for captured images
   BucketPolicy:
     Type: AWS::S3::BucketPolicy
     Properties:
@@ -46,22 +77,27 @@ Resources:
       PolicyDocument:
         Version: "2012-10-17"
         Statement:
-          - Effect: Allow
+          - Sid: PublicReadGetObject
+            Effect: Allow
             Principal: "*"
-            Action: "s3:GetObject"
+            Action: s3:GetObject
             Resource: !Sub "arn:aws:s3:::${S3BucketName}/*"
 
-  # 2. Rekognition Collection
+  # ============================================================================
+  # 2. REKOGNITION COLLECTION - Stores face embeddings for matching
+  # ============================================================================
   FaceCollection:
     Type: AWS::Rekognition::Collection
     Properties:
       CollectionId: !Ref RekognitionCollectionId
 
-  # 3. IAM Role
+  # ============================================================================
+  # 3. IAM ROLE - Permissions for Lambda functions
+  # ============================================================================
   LambdaExecutionRole:
     Type: AWS::IAM::Role
     Properties:
-      RoleName: HomeSecurityLambdaRole
+      RoleName: !Sub "HomeSecurityLambdaRole-${Environment}"
       AssumeRolePolicyDocument:
         Version: "2012-10-17"
         Statement:
@@ -70,47 +106,59 @@ Resources:
               Service: lambda.amazonaws.com
             Action: sts:AssumeRole
       Policies:
-        - PolicyName: IoTFaceRekognitionPolicy
+        - PolicyName: IoTFaceRecognitionPolicy
           PolicyDocument:
             Version: "2012-10-17"
             Statement:
+              # CloudWatch Logs
               - Effect: Allow
                 Action:
                   - logs:CreateLogGroup
                   - logs:CreateLogStream
                   - logs:PutLogEvents
                 Resource: "arn:aws:logs:*:*:*"
+              # S3 Access
               - Effect: Allow
                 Action:
                   - s3:GetObject
                   - s3:PutObject
                   - s3:DeleteObject
                 Resource: !Sub "arn:aws:s3:::${S3BucketName}/*"
+              # Rekognition Access
               - Effect: Allow
                 Action:
                   - rekognition:IndexFaces
                   - rekognition:SearchFacesByImage
-                  - rekognition:CreateCollection
-                  - rekognition:DeleteCollection
-                Resource: "*"
+                  - rekognition:DeleteFaces
+                  - rekognition:ListFaces
+                Resource: !Sub "arn:aws:rekognition:${AWS::Region}:${AWS::AccountId}:collection/${RekognitionCollectionId}"
 
-  # 4. Lambda Functions
-  # Note: CodeUri points to local folder. Use 'sam deploy' to package.
+  # ============================================================================
+  # 4. LAMBDA FUNCTION: ProcessImage
+  #    Triggered by S3 when new image uploaded to captures/ folder
+  #    Calls Rekognition to detect/match faces, saves results to MongoDB
+  # ============================================================================
   ProcessImageFunction:
     Type: AWS::Serverless::Function
     Properties:
-      FunctionName: HomeSecurity_ProcessImage
+      FunctionName: !Sub "HomeSecurity_ProcessImage_${Environment}"
+      Description: Process uploaded images - detect faces and match against known identities
       Runtime: python3.12
       Handler: handler.handler
       CodeUri: ../lambda/process_image/
       Role: !GetAtt LambdaExecutionRole.Arn
       Timeout: 30
+      MemorySize: 256
+      Architectures:
+        - arm64  # Graviton2 - cheaper and faster
       Environment:
         Variables:
           REKOGNITION_COLLECTION_ID: !Ref RekognitionCollectionId
-          MONGODB_URI: !Sub "{{resolve:ssm:MONGODB_URI}}" # Or pass as Param
+          MONGODB_URI: !Ref MongoDBUri
+          ENVIRONMENT: !Ref Environment
+      # S3 Trigger - fires when .jpg uploaded to captures/ prefix
       Events:
-        S3NewObject:
+        S3NewCapture:
           Type: S3
           Properties:
             Bucket: !Ref FaceDataBucket
@@ -123,23 +171,82 @@ Resources:
                   - Name: suffix
                     Value: .jpg
 
+  # ============================================================================
+  # 5. LAMBDA FUNCTION: ManageFaces
+  #    API for managing known faces - index new faces, list, delete
+  #    Exposed via Function URL (public HTTP endpoint)
+  # ============================================================================
   ManageFacesFunction:
     Type: AWS::Serverless::Function
     Properties:
-      FunctionName: HomeSecurity_ManageFaces
+      FunctionName: !Sub "HomeSecurity_ManageFaces_${Environment}"
+      Description: API for managing known faces - CRUD operations
       Runtime: python3.12
       Handler: handler.handler
       CodeUri: ../lambda/manage_faces/
       Role: !GetAtt LambdaExecutionRole.Arn
       Timeout: 30
+      MemorySize: 256
+      Architectures:
+        - arm64
       Environment:
         Variables:
           REKOGNITION_COLLECTION_ID: !Ref RekognitionCollectionId
           S3_BUCKET_NAME: !Ref S3BucketName
-          MONGODB_URI: !Sub "{{resolve:ssm:MONGODB_URI}}"
+          MONGODB_URI: !Ref MongoDBUri
+          ENVIRONMENT: !Ref Environment
+      # Public HTTP endpoint (no API Gateway needed)
+      FunctionUrlConfig:
+        AuthType: NONE
+        Cors:
+          AllowOrigins:
+            - "*"
+          AllowMethods:
+            - "*"
+          AllowHeaders:
+            - content-type
+            - x-api-key
+          MaxAge: 300
 
+  # Permission for public Function URL access
+  ManageFacesUrlPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref ManageFacesFunction
+      Action: lambda:InvokeFunctionUrl
+      Principal: "*"
+      FunctionUrlAuthType: NONE
+
+# ==============================================================================
+# OUTPUTS - Important values for dashboard configuration
+# ==============================================================================
 Outputs:
   S3BucketName:
+    Description: S3 Bucket for storing images
     Value: !Ref FaceDataBucket
+    Export:
+      Name: !Sub "${AWS::StackName}-S3Bucket"
+
+  S3BucketUrl:
+    Description: Public URL for S3 bucket
+    Value: !Sub "https://${S3BucketName}.s3.${AWS::Region}.amazonaws.com"
+
   RekognitionCollectionId:
-    Value: !Ref FaceCollection
+    Description: Rekognition Collection ID
+    Value: !Ref RekognitionCollectionId
+
+  ProcessImageFunctionArn:
+    Description: ARN of ProcessImage Lambda
+    Value: !GetAtt ProcessImageFunction.Arn
+
+  ManageFacesFunctionUrl:
+    Description: Public URL for ManageFaces API (use this in dashboard .env)
+    Value: !GetAtt ManageFacesFunctionUrl.FunctionUrl
+    Export:
+      Name: !Sub "${AWS::StackName}-ManageFacesUrl"
+
+  DashboardEnvConfig:
+    Description: Copy these values to dashboard/.env.local
+    Value: !Sub |
+      NEXT_PUBLIC_LAMBDA_MANAGE_FACES_URL=${ManageFacesFunctionUrl.FunctionUrl}
+      NEXT_PUBLIC_S3_BUCKET_URL=https://${S3BucketName}.s3.${AWS::Region}.amazonaws.com

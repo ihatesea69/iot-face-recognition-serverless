@@ -1,4 +1,13 @@
-export async function getPresignedUrl(fileType: string, useCase: "register" | "simulate") {
+export interface PresignedPostData {
+  url: string;
+  fields: Record<string, string>;
+  key: string;
+}
+
+export async function getPresignedUrl(
+  fileType: string,
+  useCase: "register" | "simulate"
+): Promise<PresignedPostData> {
   // Use internal API route instead of public Lambda URL to avoid CORS/Auth issues
   const res = await fetch(
     `/api/upload-url?file_type=${encodeURIComponent(
@@ -10,10 +19,10 @@ export async function getPresignedUrl(fileType: string, useCase: "register" | "s
   return res.json();
 }
 
-export async function uploadToS3(presignedData: any, file: File | Blob) {
+export async function uploadToS3(presignedData: PresignedPostData, file: File | Blob) {
   const formData = new FormData();
   Object.entries(presignedData.fields).forEach(([key, value]) => {
-    formData.append(key, value as string);
+    formData.append(key, value);
   });
   formData.append("file", file);
 

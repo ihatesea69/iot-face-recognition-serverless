@@ -1,0 +1,16 @@
+[Unit]
+Description=IoT Face Recognition Raspberry Pi Client
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=pi
+WorkingDirectory=/home/pi/iot-face-recognition
+Environment=PYTHONUNBUFFERED=1
+ExecStart=/home/pi/iot-face-recognition/.venv/bin/python -m src.rpi_client.main
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

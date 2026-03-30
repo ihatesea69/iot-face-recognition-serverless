@@ -1,23 +1,48 @@
-"""
-Raspberry Pi Edge Client - Configuration
-"""
+"""Configuration for the Raspberry Pi edge client."""
+
+from pathlib import Path
 import os
+import glob
+
 from dotenv import load_dotenv
 
-load_dotenv()
 
-# AWS Configuration
-AWS_ACCESS_KEY_ID = os.getenv("AWS_ACCESS_KEY_ID")
-AWS_SECRET_ACCESS_KEY = os.getenv("AWS_SECRET_ACCESS_KEY")
-AWS_REGION = os.getenv("AWS_REGION", "ap-southeast-1")
+MODULE_DIR = Path(__file__).resolve().parent
+PROJECT_ROOT = MODULE_DIR.parents[1]
 
-# S3 Configuration
-S3_BUCKET_NAME = os.getenv("S3_BUCKET_NAME", "iot-face-recognition-bucket")
+# Load root-level env first, then an optional Pi-local env beside this module.
+load_dotenv(PROJECT_ROOT / ".env")
+load_dotenv(MODULE_DIR / ".env", override=True)
 
-# Hardware Configuration
-PIR_PIN = int(os.getenv("PIR_PIN", "17"))  # GPIO Pin for PIR Sensor (BCM mode)
-CAMERA_INDEX = int(os.getenv("CAMERA_INDEX", "0"))  # 0 for default camera
-MOTION_COOLDOWN = int(os.getenv("MOTION_COOLDOWN", "5"))  # Seconds between captures
 
-# Simulator Mode (for testing on PC without GPIO)
-SIMULATE_GPIO = os.getenv("SIMULATE_GPIO", "false").lower() == "true"
+DEVICE_ID = os.getenv("DEVICE_ID", "pi-main")
+CAPTURE_INTERVAL_SEC = int(os.getenv("CAPTURE_INTERVAL_SEC", "5"))
+HEARTBEAT_INTERVAL_SEC = int(os.getenv("HEARTBEAT_INTERVAL_SEC", "30"))
+UPLOAD_API_URL = os.getenv("UPLOAD_API_URL", "").rstrip("/")
+
+DEFAULT_CAMERA_DEVICE = "/dev/video0"
+CAMERA_INPUT_FORMAT = os.getenv("CAMERA_INPUT_FORMAT", "mjpeg")
+CAMERA_RESOLUTION = os.getenv("CAMERA_RESOLUTION", "640x480")
+CAMERA_FRAMERATE = int(os.getenv("CAMERA_FRAMERATE", "30"))
+CAMERA_WARMUP_FRAMES = int(os.getenv("CAMERA_WARMUP_FRAMES", "30"))
+CAPTURE_RETRY_ATTEMPTS = int(os.getenv("CAPTURE_RETRY_ATTEMPTS", "3"))
+CAPTURE_RETRY_DELAY_SEC = float(os.getenv("CAPTURE_RETRY_DELAY_SEC", "1.0"))
+
+REQUEST_TIMEOUT_SEC = int(os.getenv("REQUEST_TIMEOUT_SEC", "15"))
+HEALTH_OFFLINE_THRESHOLD_SEC = int(os.getenv("HEALTH_OFFLINE_THRESHOLD_SEC", "90"))
+
+
+def resolve_camera_device() -> str:
+    """Resolve a stable video device path if possible."""
+    configured = os.getenv("CAMERA_DEVICE")
+    if configured:
+        return configured
+
+    by_id_matches = sorted(glob.glob("/dev/v4l/by-id/*-video-index0"))
+    if by_id_matches:
+        return by_id_matches[0]
+
+    return DEFAULT_CAMERA_DEVICE
+
+
+CAMERA_DEVICE = resolve_camera_device()
