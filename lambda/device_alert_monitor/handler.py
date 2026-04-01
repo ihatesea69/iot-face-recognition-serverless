@@ -33,7 +33,7 @@ def parse_datetime(value):
 
 
 def iso_utc_now():
-    return datetime.utcnow().isoformat() + "Z"
+    return datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
 
 
 def build_offline_alert_message(device):
@@ -81,7 +81,7 @@ def mark_device_offline(device_id, now_iso):
 def handler(event, context):
     """Scheduled monitor entrypoint."""
     print(f"Event: {json.dumps(event)}")
-    now = datetime.utcnow()
+    now = datetime.now(timezone.utc).replace(tzinfo=None)
     now_iso = iso_utc_now()
     alerts_sent = 0
 

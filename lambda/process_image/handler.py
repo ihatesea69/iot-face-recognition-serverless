@@ -6,7 +6,7 @@ Stores detection results in DynamoDB.
 
 import json
 import os
-from datetime import datetime
+from datetime import datetime, timezone
 from decimal import Decimal
 import uuid
 
@@ -74,7 +74,7 @@ def build_detection_result(result: dict) -> dict:
 
 
 def store_detection_event(bucket: str, key: str, image_url: str, detection_result: dict):
-    timestamp = datetime.utcnow().isoformat() + "Z"
+    timestamp = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
     event_id = uuid.uuid4().hex
     item = {
         "pk": "FEED",
@@ -133,7 +133,7 @@ def handler(event, context):
 
     result = search_face(bucket, key)
     detection_result = build_detection_result(result)
-    processed_at = datetime.utcnow().isoformat() + "Z"
+    processed_at = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
 
     event_id = None
     try:

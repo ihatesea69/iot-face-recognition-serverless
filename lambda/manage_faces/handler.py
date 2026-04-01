@@ -77,7 +77,7 @@ def file_extension_from_type(file_type):
 
 
 def build_device_capture_key(device_id, file_type):
-    timestamp = datetime.utcnow().strftime("%Y%m%d_%H%M%S")
+    timestamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
     safe_device_id = sanitize_device_id(device_id)
     return f"captures/{safe_device_id}/{timestamp}.{file_extension_from_type(file_type)}"
 
@@ -100,7 +100,7 @@ def normalize_number(value):
 
 
 def iso_utc_now():
-    return datetime.utcnow().isoformat() + "Z"
+    return datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
 
 
 def build_alert_error_key(status, last_error):
@@ -213,7 +213,7 @@ def index_face(s3_key, person_name):
             "name": person_name,
             "s3_key": s3_key,
             "image_url": image_url,
-            "registered_at": datetime.utcnow().isoformat() + "Z",
+            "registered_at": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
         }
     )
 
@@ -269,7 +269,7 @@ def list_detections(limit=50):
 
 
 def list_devices():
-    now = datetime.utcnow()
+    now = datetime.now(timezone.utc).replace(tzinfo=None)
     response = get_device_status_table().scan()
     devices = response.get("Items", [])
     devices.sort(key=lambda item: item.get("last_seen", ""), reverse=True)
