@@ -82,7 +82,7 @@ Hệ thống theo mô hình **Event-Driven Serverless Architecture**:
 - **Amazon DynamoDB** - Serverless NoSQL database
 
 ### Frontend
-- **Next.js 16** (App Router)
+- **Next.js 15** (App Router)
 - **Tailwind CSS**
 - **SWR** - Data fetching
 - **AWS Amplify Hosting** - Production hosting
@@ -98,7 +98,7 @@ Hệ thống theo mô hình **Event-Driven Serverless Architecture**:
 ### Yêu cầu
 - AWS Account với credentials đã cấu hình
 - Node.js 18+ và Python 3.10+
-- Vercel account để deploy dashboard production
+- AWS Amplify app để deploy dashboard production
 
 ### 1. Triển khai Infrastructure
 

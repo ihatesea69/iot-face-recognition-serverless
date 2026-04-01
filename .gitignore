@@ -28,6 +28,7 @@ coverage/
 # AWS / SAM
 infrastructure/.aws-sam/
 infrastructure/samconfig.toml
+infrastructure/backups/
 
 # Environment Variables
 .env
