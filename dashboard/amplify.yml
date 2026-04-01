@@ -1,0 +1,32 @@
+version: 1
+applications:
+  - appRoot: dashboard
+    frontend:
+      phases:
+        preBuild:
+          commands:
+            - npm ci
+        build:
+          commands:
+            - |
+              cat > .env.production <<EOF
+              APP_AWS_REGION=$APP_AWS_REGION
+              APP_AWS_ACCESS_KEY_ID=$APP_AWS_ACCESS_KEY_ID
+              APP_AWS_SECRET_ACCESS_KEY=$APP_AWS_SECRET_ACCESS_KEY
+              S3_BUCKET_NAME=$S3_BUCKET_NAME
+              REKOGNITION_COLLECTION_ID=$REKOGNITION_COLLECTION_ID
+              DYNAMODB_DETECTIONS_TABLE=$DYNAMODB_DETECTIONS_TABLE
+              DYNAMODB_KNOWN_PERSONS_TABLE=$DYNAMODB_KNOWN_PERSONS_TABLE
+              DYNAMODB_DEVICE_STATUS_TABLE=$DYNAMODB_DEVICE_STATUS_TABLE
+              NEXT_PUBLIC_S3_BUCKET_URL=$NEXT_PUBLIC_S3_BUCKET_URL
+              NEXT_PUBLIC_LAMBDA_MANAGE_FACES_URL=$NEXT_PUBLIC_LAMBDA_MANAGE_FACES_URL
+              EOF
+            - npm run build
+      artifacts:
+        baseDirectory: .next
+        files:
+          - '**/*'
+      cache:
+        paths:
+          - node_modules/**/*
+          - .next/cache/**/*

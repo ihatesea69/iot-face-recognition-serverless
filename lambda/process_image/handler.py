@@ -1,36 +1,31 @@
 """
 Lambda: Process Image
-Triggered by S3 PutObject event when IoT simulator uploads an image.
-
-Flow:
-1. Get image from S3
-2. Call Rekognition search_faces_by_image
-3. Determine stranger/known person
-4. Store result in MongoDB Atlas
+Triggered by S3 PutObject event when the system uploads an image.
+Stores detection results in DynamoDB.
 """
 
 import json
 import os
 from datetime import datetime
+from decimal import Decimal
+import uuid
 
 import boto3
-from pymongo import MongoClient
 
 # Environment variables
 REKOGNITION_COLLECTION_ID = os.environ.get("REKOGNITION_COLLECTION_ID", "home-security-faces")
-MONGODB_URI = os.environ.get("MONGODB_URI")
+DYNAMODB_DETECTIONS_TABLE = os.environ.get(
+    "DYNAMODB_DETECTIONS_TABLE", "home-security-detections-prod"
+)
 CONFIDENCE_THRESHOLD = float(os.environ.get("CONFIDENCE_THRESHOLD", "80"))
 
 # Initialize clients
 rekognition = boto3.client("rekognition")
-s3 = boto3.client("s3")
+dynamodb = boto3.resource("dynamodb")
 
 
-def get_mongo_collection():
-    """Get MongoDB collection for detection events."""
-    client = MongoClient(MONGODB_URI)
-    db = client["home_security"]
-    return db["detection_events"]
+def get_detections_table():
+    return dynamodb.Table(DYNAMODB_DETECTIONS_TABLE)
 
 
 def search_face(bucket: str, key: str) -> dict:
@@ -44,10 +39,8 @@ def search_face(bucket: str, key: str) -> dict:
         )
         return response
     except rekognition.exceptions.InvalidParameterException:
-        # No face detected in image
         return {"FaceMatches": [], "Error": "NoFaceDetected"}
     except rekognition.exceptions.ResourceNotFoundException:
-        # Collection doesn't exist yet
         return {"FaceMatches": [], "Error": "CollectionNotFound"}
     except Exception as e:
         return {"FaceMatches": [], "Error": str(e)}
@@ -61,70 +54,74 @@ def extract_device_id(s3_key: str) -> str:
     return "unknown"
 
 
+def build_detection_result(result: dict) -> dict:
+    face_matches = result.get("FaceMatches", [])
+    if face_matches:
+        match = face_matches[0]
+        return {
+            "type": "known",
+            "person_id": match["Face"]["FaceId"],
+            "external_id": match["Face"].get("ExternalImageId", "Unknown"),
+            "confidence": float(match["Similarity"]),
+        }
+
+    error = result.get("Error")
+    if error == "NoFaceDetected":
+        return {"type": "no_face", "confidence": 0.0}
+    return {"type": "stranger", "confidence": 0.0}
+
+
+def store_detection_event(bucket: str, key: str, image_url: str, detection_result: dict):
+    timestamp = datetime.utcnow().isoformat() + "Z"
+    event_id = uuid.uuid4().hex
+    item = {
+        "pk": "FEED",
+        "sk": f"{timestamp}#{event_id}",
+        "event_id": event_id,
+        "timestamp": timestamp,
+        "processed_at": timestamp,
+        "image_url": image_url,
+        "s3_bucket": bucket,
+        "s3_key": key,
+        "device_id": extract_device_id(key),
+        "detection_type": detection_result["type"],
+        "person_id": detection_result.get("person_id"),
+        "external_id": detection_result.get("external_id"),
+        "confidence": Decimal(str(detection_result.get("confidence", 0.0))),
+    }
+    get_detections_table().put_item(Item=item)
+    return event_id
+
+
 def handler(event, context):
     """Lambda handler for S3 trigger."""
     print(f"Event: {json.dumps(event)}")
 
-    # Parse S3 event
     record = event["Records"][0]
     bucket = record["s3"]["bucket"]["name"]
     key = record["s3"]["object"]["key"]
 
-    # Build public image URL
     region = os.environ.get("AWS_REGION", "ap-southeast-1")
     image_url = f"https://{bucket}.s3.{region}.amazonaws.com/{key}"
 
     print(f"Processing image: {image_url}")
 
-    # Search face in collection
     result = search_face(bucket, key)
+    detection_result = build_detection_result(result)
 
-    # Determine detection result
-    face_matches = result.get("FaceMatches", [])
-
-    if face_matches:
-        # Known person found
-        match = face_matches[0]
-        detection_result = {
-            "type": "known",
-            "person_id": match["Face"]["FaceId"],
-            "external_id": match["Face"].get("ExternalImageId", "Unknown"),
-            "confidence": match["Similarity"],
-        }
-    else:
-        # Stranger or no face
-        error = result.get("Error")
-        if error == "NoFaceDetected":
-            detection_result = {"type": "no_face", "confidence": 0}
-        else:
-            detection_result = {"type": "stranger", "confidence": 0}
-
-    # Build detection event document
-    detection_event = {
-        "timestamp": datetime.utcnow(),
-        "image_url": image_url,
-        "s3_bucket": bucket,
-        "s3_key": key,
-        "device_id": extract_device_id(key),
-        "detection": detection_result,
-        "processed_at": datetime.utcnow(),
-    }
-
-    # Store in MongoDB
+    event_id = None
     try:
-        collection = get_mongo_collection()
-        insert_result = collection.insert_one(detection_event)
-        detection_event["_id"] = str(insert_result.inserted_id)
-        print(f"Stored detection event: {detection_event['_id']}")
+        event_id = store_detection_event(bucket, key, image_url, detection_result)
+        print(f"Stored detection event: {event_id}")
     except Exception as e:
-        print(f"MongoDB error: {e}")
-        detection_event["_id"] = None
+        print(f"DynamoDB error: {e}")
 
     return {
         "statusCode": 200,
         "body": json.dumps(
             {
                 "message": "Image processed",
+                "event_id": event_id,
                 "detection": detection_result,
                 "image_url": image_url,
             },

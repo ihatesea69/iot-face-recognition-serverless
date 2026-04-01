@@ -1,40 +1,45 @@
-"""Lambda: Manage Faces and device upload/heartbeat APIs."""
+"""Lambda: Manage Faces and device upload/heartbeat APIs backed by DynamoDB."""
 
 import base64
 from datetime import datetime, timezone
+from decimal import Decimal
 import json
 import os
 import re
 import uuid
 
 import boto3
+from boto3.dynamodb.conditions import Key
 from botocore.exceptions import ClientError
-from pymongo import MongoClient
 
 
 REKOGNITION_COLLECTION_ID = os.environ.get("REKOGNITION_COLLECTION_ID", "home-security-faces")
 S3_BUCKET_NAME = os.environ.get("S3_BUCKET_NAME", "iot-face-recognition-bucket")
-MONGODB_URI = os.environ.get("MONGODB_URI")
+DYNAMODB_KNOWN_PERSONS_TABLE = os.environ.get(
+    "DYNAMODB_KNOWN_PERSONS_TABLE", "home-security-known-persons-prod"
+)
+DYNAMODB_DEVICE_STATUS_TABLE = os.environ.get(
+    "DYNAMODB_DEVICE_STATUS_TABLE", "home-security-device-status-prod"
+)
+DYNAMODB_DETECTIONS_TABLE = os.environ.get(
+    "DYNAMODB_DETECTIONS_TABLE", "home-security-detections-prod"
+)
 
 rekognition = boto3.client("rekognition")
 s3 = boto3.client("s3")
-mongo_client = MongoClient(MONGODB_URI) if MONGODB_URI else None
+dynamodb = boto3.resource("dynamodb")
 
 
-def get_db():
-    if not mongo_client:
-        raise ValueError("MONGODB_URI is not configured")
-    return mongo_client["home_security"]
+def get_known_persons_table():
+    return dynamodb.Table(DYNAMODB_KNOWN_PERSONS_TABLE)
 
 
-def get_known_persons_collection():
-    return get_db()["known_persons"]
+def get_device_status_table():
+    return dynamodb.Table(DYNAMODB_DEVICE_STATUS_TABLE)
 
 
-def get_device_status_collection():
-    collection = get_db()["device_status"]
-    collection.create_index("device_id", unique=True)
-    return collection
+def get_detections_table():
+    return dynamodb.Table(DYNAMODB_DETECTIONS_TABLE)
 
 
 def parse_json_body(event):
@@ -53,6 +58,11 @@ def parse_datetime(value):
     return parsed
 
 
+def iso_or_none(value):
+    parsed = parse_datetime(value)
+    return parsed.isoformat() + "Z" if parsed else None
+
+
 def sanitize_device_id(device_id):
     cleaned = re.sub(r"[^a-zA-Z0-9._-]+", "-", (device_id or "").strip()).strip("-")
     return cleaned or "unknown"
@@ -67,6 +77,23 @@ def build_device_capture_key(device_id, file_type):
     timestamp = datetime.utcnow().strftime("%Y%m%d_%H%M%S")
     safe_device_id = sanitize_device_id(device_id)
     return f"captures/{safe_device_id}/{timestamp}.{file_extension_from_type(file_type)}"
+
+
+def to_date(value):
+    if not value:
+        return None
+    parsed = parse_datetime(value)
+    if parsed:
+        return parsed
+    return None
+
+
+def normalize_number(value):
+    if isinstance(value, Decimal):
+        if value % 1 == 0:
+            return int(value)
+        return float(value)
+    return value
 
 
 def ensure_collection_exists():
@@ -96,41 +123,101 @@ def index_face(s3_key, person_name):
     face_record = response["FaceRecords"][0]
     face_id = face_record["Face"]["FaceId"]
 
-    collection = get_known_persons_collection()
-    person_doc = {
-        "name": person_name,
-        "face_id": face_id,
-        "s3_key": s3_key,
-        "registered_at": datetime.utcnow(),
-    }
-    collection.insert_one(person_doc)
+    image_url = f"https://{S3_BUCKET_NAME}.s3.amazonaws.com/{s3_key}"
+    get_known_persons_table().put_item(
+        Item={
+            "face_id": face_id,
+            "name": person_name,
+            "s3_key": s3_key,
+            "image_url": image_url,
+            "registered_at": datetime.utcnow().isoformat() + "Z",
+        }
+    )
 
     return {"face_id": face_id, "name": person_name}
 
 
 def list_faces():
-    """List all faces in collection."""
-    try:
-        response = rekognition.list_faces(CollectionId=REKOGNITION_COLLECTION_ID, MaxResults=100)
-        faces = []
-        for face in response.get("Faces", []):
-            faces.append(
-                {
-                    "face_id": face["FaceId"],
-                    "external_id": face.get("ExternalImageId", "Unknown"),
-                }
-            )
-        return faces
-    except rekognition.exceptions.ResourceNotFoundException:
-        return []
+    """List all known persons from DynamoDB."""
+    response = get_known_persons_table().scan()
+    persons = response.get("Items", [])
+    persons.sort(key=lambda item: item.get("registered_at", ""), reverse=True)
+    return {
+        "persons": [
+            {
+                "_id": item["face_id"],
+                "face_id": item["face_id"],
+                "name": item.get("name", "Unknown"),
+                "s3_key": item.get("s3_key", ""),
+                "image_url": item.get("image_url"),
+                "registered_at": item.get("registered_at"),
+            }
+            for item in persons
+        ]
+    }
+
+
+def list_detections(limit=50):
+    response = get_detections_table().query(
+        KeyConditionExpression=Key("pk").eq("FEED"),
+        ScanIndexForward=False,
+        Limit=limit,
+    )
+    events = []
+    for item in response.get("Items", []):
+        events.append(
+            {
+                "_id": item["event_id"],
+                "timestamp": item["timestamp"],
+                "processed_at": item.get("processed_at", item["timestamp"]),
+                "image_url": item["image_url"],
+                "s3_bucket": item["s3_bucket"],
+                "s3_key": item["s3_key"],
+                "device_id": item.get("device_id", "unknown"),
+                "detection": {
+                    "type": item.get("detection_type", "stranger"),
+                    "person_id": item.get("person_id"),
+                    "external_id": item.get("external_id"),
+                    "confidence": float(item.get("confidence", 0)),
+                },
+            }
+        )
+    return {"events": events}
+
+
+def list_devices():
+    now = datetime.utcnow()
+    response = get_device_status_table().scan()
+    devices = response.get("Items", [])
+    devices.sort(key=lambda item: item.get("last_seen", ""), reverse=True)
+    payload = []
+    for item in devices:
+        last_seen = to_date(item.get("last_seen"))
+        is_online = bool(last_seen and (now - last_seen).total_seconds() <= 90)
+        payload.append(
+            {
+                "_id": item["device_id"],
+                "device_id": item["device_id"],
+                "status": item.get("status", "degraded"),
+                "capture_interval_sec": normalize_number(item.get("capture_interval_sec")),
+                "camera_device": item.get("camera_device"),
+                "last_capture_at": item.get("last_capture_at"),
+                "last_upload_ok_at": item.get("last_upload_ok_at"),
+                "last_error": item.get("last_error"),
+                "last_seen": item.get("last_seen"),
+                "updated_at": item.get("updated_at"),
+                "created_at": item.get("created_at"),
+                "is_online": is_online,
+            }
+        )
+    return {"devices": payload}
 
 
 def delete_face(face_id):
-    """Delete a face from collection."""
+    """Delete a face from collection and DynamoDB."""
     try:
         rekognition.delete_faces(CollectionId=REKOGNITION_COLLECTION_ID, FaceIds=[face_id])
-        collection = get_known_persons_collection()
-        collection.delete_one({"face_id": face_id})
+        get_known_persons_table().delete_item(Key={"face_id": face_id})
         return {"deleted": face_id}
     except Exception as e:
         return {"error": str(e)}
@@ -171,36 +258,34 @@ def generate_presigned_url(file_type, prefix="faces", object_name=None):
 
 def upsert_device_status(payload):
     device_id = sanitize_device_id(payload.get("device_id"))
-    status = payload.get("status") or "degraded"
-    now = datetime.utcnow()
+    now_iso = datetime.utcnow().isoformat() + "Z"
+    table = get_device_status_table()
 
-    update_doc = {
-        "$set": {
-            "device_id": device_id,
-            "status": status,
-            "capture_interval_sec": payload.get("capture_interval_sec"),
-            "camera_device": payload.get("camera_device"),
-            "last_capture_at": parse_datetime(payload.get("last_capture_at")),
-            "last_upload_ok_at": parse_datetime(payload.get("last_upload_ok_at")),
-            "last_error": payload.get("last_error"),
-            "last_seen": now,
-            "updated_at": now,
-        },
-        "$setOnInsert": {
-            "created_at": now,
-        },
+    existing = table.get_item(Key={"device_id": device_id}).get("Item", {})
+    item = {
+        "device_id": device_id,
+        "status": payload.get("status") or "degraded",
+        "capture_interval_sec": payload.get("capture_interval_sec"),
+        "camera_device": payload.get("camera_device"),
+        "last_capture_at": iso_or_none(payload.get("last_capture_at")),
+        "last_upload_ok_at": iso_or_none(payload.get("last_upload_ok_at")),
+        "last_error": payload.get("last_error"),
+        "last_seen": now_iso,
+        "updated_at": now_iso,
+        "created_at": existing.get("created_at", now_iso),
     }
 
-    collection = get_device_status_collection()
-    collection.update_one({"device_id": device_id}, update_doc, upsert=True)
-    return {"ok": True, "device_id": device_id, "last_seen": now.isoformat()}
+    table.put_item(Item=item)
+    return {"ok": True, "device_id": device_id, "last_seen": now_iso}
 
 
 def handler(event, context):
     """Lambda handler for API Gateway / Lambda Function URL."""
     print(f"Event: {json.dumps(event)}")
 
-    http_method = event.get("httpMethod", event.get("requestContext", {}).get("http", {}).get("method", "GET"))
+    http_method = event.get(
+        "httpMethod", event.get("requestContext", {}).get("http", {}).get("method", "GET")
+    )
     path = event.get("path", event.get("rawPath", "/faces"))
     query_params = event.get("queryStringParameters", {}) or {}
     action = query_params.get("action")
@@ -272,8 +357,20 @@ def handler(event, context):
                     "body": json.dumps({"error": "Failed to generate URL"}),
                 }
 
-            faces = list_faces()
-            return {"statusCode": 200, "headers": headers, "body": json.dumps({"faces": faces})}
+            if action == "detections":
+                result = list_detections()
+                return {"statusCode": 200, "headers": headers, "body": json.dumps(result)}
+
+            if action == "devices":
+                result = list_devices()
+                return {"statusCode": 200, "headers": headers, "body": json.dumps(result)}
+
+            if action == "faces":
+                result = list_faces()
+                return {"statusCode": 200, "headers": headers, "body": json.dumps(result)}
+
+            result = list_faces()
+            return {"statusCode": 200, "headers": headers, "body": json.dumps(result)}
 
         if http_method == "DELETE":
             path_parts = path.split("/")

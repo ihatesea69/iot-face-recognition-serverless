@@ -1,24 +1,26 @@
 import { NextResponse } from "next/server";
-import { connectToDatabase, KnownPerson } from "@/lib/mongodb";
+
+const lambdaUrl = process.env.NEXT_PUBLIC_LAMBDA_MANAGE_FACES_URL;
 
 export async function GET() {
+  if (!lambdaUrl) {
+    return NextResponse.json({ error: "ManageFaces URL is not configured" }, { status: 500 });
+  }
+
   try {
-    const { db } = await connectToDatabase();
-    const collection = db.collection<KnownPerson>("known_persons");
+    const response = await fetch(`${lambdaUrl}?action=faces`, {
+      cache: "no-store",
+    });
+    const body = await response.text();
 
-    const persons = await collection
-      .find({})
-      .sort({ registered_at: -1 })
-      .toArray();
-
-    const serializedPersons = persons.map((person) => ({
-      ...person,
-      _id: person._id.toString(),
-    }));
-
-    return NextResponse.json({ persons: serializedPersons });
+    return new NextResponse(body, {
+      status: response.status,
+      headers: {
+        "Content-Type": "application/json",
+      },
+    });
   } catch (error) {
-    console.error("Database error:", error);
+    console.error("Faces proxy error:", error);
     return NextResponse.json({ error: "Database error" }, { status: 500 });
   }
 }

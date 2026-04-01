@@ -21,11 +21,6 @@ Parameters:
     Default: home-security-faces
     Description: Name of the Rekognition Face Collection
 
-  MongoDBUri:
-    Type: String
-    NoEcho: true
-    Description: MongoDB Atlas connection string (stored securely)
-
   Environment:
     Type: String
     Default: dev
@@ -84,12 +79,47 @@ Resources:
             Resource: !Sub "arn:aws:s3:::${S3BucketName}/*"
 
   # ============================================================================
-  # 2. REKOGNITION COLLECTION - Stores face embeddings for matching
+  # 2. DYNAMODB TABLES - Primary application storage
   # ============================================================================
-  FaceCollection:
-    Type: AWS::Rekognition::Collection
+  DetectionEventsTable:
+    Type: AWS::DynamoDB::Table
     Properties:
-      CollectionId: !Ref RekognitionCollectionId
+      TableName: !Sub "home-security-detections-${Environment}"
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: pk
+          AttributeType: S
+        - AttributeName: sk
+          AttributeType: S
+      KeySchema:
+        - AttributeName: pk
+          KeyType: HASH
+        - AttributeName: sk
+          KeyType: RANGE
+
+  KnownPersonsTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub "home-security-known-persons-${Environment}"
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: face_id
+          AttributeType: S
+      KeySchema:
+        - AttributeName: face_id
+          KeyType: HASH
+
+  DeviceStatusTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub "home-security-device-status-${Environment}"
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: device_id
+          AttributeType: S
+      KeySchema:
+        - AttributeName: device_id
+          KeyType: HASH
 
   # ============================================================================
   # 3. IAM ROLE - Permissions for Lambda functions
@@ -132,11 +162,24 @@ Resources:
                   - rekognition:DeleteFaces
                   - rekognition:ListFaces
                 Resource: !Sub "arn:aws:rekognition:${AWS::Region}:${AWS::AccountId}:collection/${RekognitionCollectionId}"
+              # DynamoDB Access
+              - Effect: Allow
+                Action:
+                  - dynamodb:GetItem
+                  - dynamodb:PutItem
+                  - dynamodb:UpdateItem
+                  - dynamodb:DeleteItem
+                  - dynamodb:Query
+                  - dynamodb:Scan
+                Resource:
+                  - !GetAtt DetectionEventsTable.Arn
+                  - !GetAtt KnownPersonsTable.Arn
+                  - !GetAtt DeviceStatusTable.Arn
 
   # ============================================================================
   # 4. LAMBDA FUNCTION: ProcessImage
   #    Triggered by S3 when new image uploaded to captures/ folder
-  #    Calls Rekognition to detect/match faces, saves results to MongoDB
+  #    Calls Rekognition to detect/match faces, saves results to DynamoDB
   # ============================================================================
   ProcessImageFunction:
     Type: AWS::Serverless::Function
@@ -154,7 +197,7 @@ Resources:
       Environment:
         Variables:
           REKOGNITION_COLLECTION_ID: !Ref RekognitionCollectionId
-          MONGODB_URI: !Ref MongoDBUri
+          DYNAMODB_DETECTIONS_TABLE: !Ref DetectionEventsTable
           ENVIRONMENT: !Ref Environment
       # S3 Trigger - fires when .jpg uploaded to captures/ prefix
       Events:
@@ -193,7 +236,8 @@ Resources:
         Variables:
           REKOGNITION_COLLECTION_ID: !Ref RekognitionCollectionId
           S3_BUCKET_NAME: !Ref S3BucketName
-          MONGODB_URI: !Ref MongoDBUri
+          DYNAMODB_KNOWN_PERSONS_TABLE: !Ref KnownPersonsTable
+          DYNAMODB_DEVICE_STATUS_TABLE: !Ref DeviceStatusTable
           ENVIRONMENT: !Ref Environment
       # Public HTTP endpoint (no API Gateway needed)
       FunctionUrlConfig:
@@ -235,6 +279,18 @@ Outputs:
     Description: Rekognition Collection ID
     Value: !Ref RekognitionCollectionId
 
+  DetectionsTableName:
+    Description: DynamoDB table for detection events
+    Value: !Ref DetectionEventsTable
+
+  KnownPersonsTableName:
+    Description: DynamoDB table for known persons
+    Value: !Ref KnownPersonsTable
+
+  DeviceStatusTableName:
+    Description: DynamoDB table for device status
+    Value: !Ref DeviceStatusTable
+
   ProcessImageFunctionArn:
     Description: ARN of ProcessImage Lambda
     Value: !GetAtt ProcessImageFunction.Arn
@@ -248,5 +304,12 @@ Outputs:
   DashboardEnvConfig:
     Description: Copy these values to dashboard/.env.local
     Value: !Sub |
+      APP_AWS_REGION=${AWS::Region}
+      AWS_REGION=${AWS::Region}
       NEXT_PUBLIC_LAMBDA_MANAGE_FACES_URL=${ManageFacesFunctionUrl.FunctionUrl}
       NEXT_PUBLIC_S3_BUCKET_URL=https://${S3BucketName}.s3.${AWS::Region}.amazonaws.com
+      S3_BUCKET_NAME=${S3BucketName}
+      REKOGNITION_COLLECTION_ID=${RekognitionCollectionId}
+      DYNAMODB_DETECTIONS_TABLE=${DetectionEventsTable}
+      DYNAMODB_KNOWN_PERSONS_TABLE=${KnownPersonsTable}
+      DYNAMODB_DEVICE_STATUS_TABLE=${DeviceStatusTable}

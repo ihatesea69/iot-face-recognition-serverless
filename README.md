@@ -2,7 +2,7 @@
 
 > **Đồ án Internet of Things** - Trường Đại học Ngoại ngữ - Tin học TP.HCM
 
-Hệ thống an ninh nhà ở thông minh sử dụng nhận diện khuôn mặt với kiến trúc Serverless. Xây dựng với AWS Lambda, Amazon Rekognition, MongoDB Atlas và Next.js.
+Hệ thống an ninh nhà ở thông minh sử dụng nhận diện khuôn mặt với kiến trúc serverless/managed trên AWS. Xây dựng với AWS Lambda, Amazon Rekognition, Amazon DynamoDB, Amazon S3 và Next.js host trên AWS Amplify Hosting.
 
 [![Live Demo](https://img.shields.io/badge/🌐_Live_Demo-GitHub_Pages-blue)](https://ihatesea69.github.io/iot-face-recognition-serverless/)
 [![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
@@ -55,8 +55,8 @@ Hệ thống theo mô hình **Event-Driven Serverless Architecture**:
 3. **Processing Layer**:
    - `ProcessImage`: Gọi **Amazon Rekognition** để nhận diện và so sánh khuôn mặt
    - `ManageFaces`: Xử lý đăng ký khuôn mặt mới và tạo presigned URLs
-4. **Data Layer**: Lưu trữ metadata và logs trong **MongoDB Atlas**
-5. **Presentation Layer**: **Next.js** Dashboard với real-time polling (SWR)
+4. **Data Layer**: Lưu trữ metadata, thiết bị và người quen trong **Amazon DynamoDB**
+5. **Presentation Layer**: **Next.js** Dashboard triển khai trên **AWS Amplify Hosting**
 
 ## ✨ Tính năng chính
 
@@ -79,12 +79,13 @@ Hệ thống theo mô hình **Event-Driven Serverless Architecture**:
 - **AWS IAM** - Security & access management
 
 ### Database
-- **MongoDB Atlas** - Cloud database
+- **Amazon DynamoDB** - Serverless NoSQL database
 
 ### Frontend
-- **Next.js 14** (App Router)
+- **Next.js 16** (App Router)
 - **Tailwind CSS**
 - **SWR** - Data fetching
+- **AWS Amplify Hosting** - Production hosting
 
 ### Edge/Backend
 - **Python 3.12** (Boto3)
@@ -96,20 +97,15 @@ Hệ thống theo mô hình **Event-Driven Serverless Architecture**:
 
 ### Yêu cầu
 - AWS Account với credentials đã cấu hình
-- MongoDB Atlas connection string
 - Node.js 18+ và Python 3.10+
+- Vercel account để deploy dashboard production
 
 ### 1. Triển khai Infrastructure
 
 ```bash
-# Cài đặt dependencies
-pip install -r infrastructure/requirements.txt
-
-# Provision S3 và Rekognition Collection
-python infrastructure/setup_aws.py
-
-# Deploy Lambda Functions
-python infrastructure/deploy_backend.py
+cd infrastructure
+sam build
+sam deploy --guided
 ```
 
 ### 2. Chạy Dashboard
@@ -118,11 +114,26 @@ python infrastructure/deploy_backend.py
 cd dashboard
 npm install
 
-# Tạo file .env.local với MongoDB URI và Lambda URLs
+# Tạo file .env.local với DynamoDB/S3/Lambda URLs
 cp .env.example .env.local
 
 npm run dev
 ```
+
+### 2.1 Deploy Frontend lên AWS Amplify
+
+- Kết nối repo GitHub vào Amplify app
+- Chọn `dashboard` làm app root
+- Dùng file `dashboard/amplify.yml`
+- Gán env vars:
+  - `APP_AWS_REGION`
+  - `S3_BUCKET_NAME`
+  - `REKOGNITION_COLLECTION_ID`
+  - `DYNAMODB_DETECTIONS_TABLE`
+  - `DYNAMODB_KNOWN_PERSONS_TABLE`
+  - `DYNAMODB_DEVICE_STATUS_TABLE`
+  - `NEXT_PUBLIC_S3_BUCKET_URL`
+  - `NEXT_PUBLIC_LAMBDA_MANAGE_FACES_URL`
 
 ### 3. Cấu hình Raspberry Pi (Optional)
 
@@ -137,12 +148,12 @@ python main.py
 ## 📂 Cấu trúc dự án
 
 ```
-├── infrastructure/     # IaC scripts cho AWS
+├── infrastructure/     # SAM / CloudFormation cho AWS
 ├── src/rpi_client/     # Python client cho Raspberry Pi
 ├── lambda/             # AWS Lambda functions
 │   ├── process_image/  # Xử lý nhận diện khuôn mặt
 │   └── manage_faces/   # API quản lý danh tính
-├── dashboard/          # Next.js web application
+├── dashboard/          # Next.js web application (deploy lên AWS Amplify)
 └── docs/               # GitHub Pages landing page
 ```
 

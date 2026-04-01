@@ -1,28 +1,26 @@
 import { NextResponse } from "next/server";
-import { connectToDatabase, DetectionEvent } from "@/lib/mongodb";
+
+const lambdaUrl = process.env.NEXT_PUBLIC_LAMBDA_MANAGE_FACES_URL;
 
 export async function GET() {
+  if (!lambdaUrl) {
+    return NextResponse.json({ error: "ManageFaces URL is not configured" }, { status: 500 });
+  }
+
   try {
-    const { db } = await connectToDatabase();
-    const collection = db.collection<DetectionEvent>("detection_events");
+    const response = await fetch(`${lambdaUrl}?action=detections`, {
+      cache: "no-store",
+    });
+    const body = await response.text();
 
-    const events = await collection
-      .find({})
-      .sort({ timestamp: -1 })
-      .limit(50)
-      .toArray();
-
-    // Convert ObjectId to string for JSON serialization
-    const serializedEvents = events.map((event) => ({
-      ...event,
-      _id: event._id.toString(),
-      timestamp: event.timestamp,
-      processed_at: event.processed_at,
-    }));
-
-    return NextResponse.json({ events: serializedEvents });
+    return new NextResponse(body, {
+      status: response.status,
+      headers: {
+        "Content-Type": "application/json",
+      },
+    });
   } catch (error) {
-    console.error("Database error:", error);
+    console.error("Detections proxy error:", error);
     return NextResponse.json({ error: "Database error" }, { status: 500 });
   }
 }

@@ -1,0 +1,40 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "DynamoDbAccess",
+      "Effect": "Allow",
+      "Action": [
+        "dynamodb:GetItem",
+        "dynamodb:PutItem",
+        "dynamodb:UpdateItem",
+        "dynamodb:DeleteItem",
+        "dynamodb:Query",
+        "dynamodb:Scan"
+      ],
+      "Resource": [
+        "arn:aws:dynamodb:ap-southeast-1:839248985798:table/home-security-detections-prod",
+        "arn:aws:dynamodb:ap-southeast-1:839248985798:table/home-security-known-persons-prod",
+        "arn:aws:dynamodb:ap-southeast-1:839248985798:table/home-security-device-status-prod"
+      ]
+    },
+    {
+      "Sid": "S3UploadAccess",
+      "Effect": "Allow",
+      "Action": [
+        "s3:PutObject"
+      ],
+      "Resource": "arn:aws:s3:::nghi-iot-face-prod-839248985798/*"
+    },
+    {
+      "Sid": "RekognitionCollectionAccess",
+      "Effect": "Allow",
+      "Action": [
+        "rekognition:IndexFaces",
+        "rekognition:DeleteFaces",
+        "rekognition:ListFaces"
+      ],
+      "Resource": "arn:aws:rekognition:ap-southeast-1:839248985798:collection/home-security-faces"
+    }
+  ]
+}

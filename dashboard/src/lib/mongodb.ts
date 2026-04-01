@@ -1,32 +1,6 @@
-import { MongoClient, Db } from "mongodb";
-
-let cachedClient: MongoClient | null = null;
-let cachedDb: Db | null = null;
-
-export async function connectToDatabase(): Promise<{ client: MongoClient; db: Db }> {
-  const MONGODB_URI = process.env.MONGODB_URI;
-
-  if (!MONGODB_URI) {
-    throw new Error("Please define MONGODB_URI environment variable");
-  }
-
-  if (cachedClient && cachedDb) {
-    return { client: cachedClient, db: cachedDb };
-  }
-
-  const client = new MongoClient(MONGODB_URI);
-  await client.connect();
-  const db = client.db("home_security");
-
-  cachedClient = client;
-  cachedDb = db;
-
-  return { client, db };
-}
-
 export interface DetectionEvent {
   _id: string;
-  timestamp: Date;
+  timestamp: Date | string;
   image_url: string;
   s3_bucket: string;
   s3_key: string;
@@ -37,7 +11,7 @@ export interface DetectionEvent {
     external_id?: string;
     confidence: number;
   };
-  processed_at: Date;
+  processed_at: Date | string;
 }
 
 export interface KnownPerson {
@@ -45,7 +19,8 @@ export interface KnownPerson {
   name: string;
   face_id: string;
   s3_key: string;
-  registered_at: Date;
+  image_url?: string;
+  registered_at: Date | string;
 }
 
 export interface DeviceStatus {
@@ -54,10 +29,11 @@ export interface DeviceStatus {
   status: "online" | "degraded";
   capture_interval_sec?: number;
   camera_device?: string;
-  last_capture_at?: Date | null;
-  last_upload_ok_at?: Date | null;
+  last_capture_at?: Date | string | null;
+  last_upload_ok_at?: Date | string | null;
   last_error?: string | null;
-  last_seen: Date;
-  updated_at?: Date;
+  last_seen: Date | string;
+  updated_at?: Date | string;
+  created_at?: Date | string;
   is_online?: boolean;
 }

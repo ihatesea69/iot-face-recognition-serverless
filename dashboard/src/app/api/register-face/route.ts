@@ -1,102 +1,32 @@
-import {
-  IndexFacesCommand,
-  RekognitionClient,
-  type RekognitionClientConfig,
-} from "@aws-sdk/client-rekognition";
-import { connectToDatabase } from "@/lib/mongodb";
 import { NextResponse } from "next/server";
 
-function getAwsRegion() {
-  return process.env.APP_AWS_REGION || process.env.AWS_REGION || process.env.AWS_DEFAULT_REGION || "ap-southeast-1";
-}
-
-function getRekognitionClient() {
-  const clientConfig: RekognitionClientConfig = {
-    region: getAwsRegion(),
-  };
-
-  if (process.env.AWS_ACCESS_KEY_ID && process.env.AWS_SECRET_ACCESS_KEY) {
-    clientConfig.credentials = {
-      accessKeyId: process.env.AWS_ACCESS_KEY_ID,
-      secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
-    };
-  }
-
-  return new RekognitionClient(clientConfig);
-}
-
-const COLLECTION_ID = process.env.REKOGNITION_COLLECTION_ID || "home-security-faces";
-const BUCKET_NAME = process.env.S3_BUCKET_NAME || "nghi-face-recognition-bucket";
+const lambdaUrl = process.env.NEXT_PUBLIC_LAMBDA_MANAGE_FACES_URL;
 
 export async function POST(request: Request) {
+  if (!lambdaUrl) {
+    return NextResponse.json({ error: "ManageFaces URL is not configured" }, { status: 500 });
+  }
+
   try {
-    const { name, s3_key } = await request.json();
-
-    if (!name || !s3_key) {
-      return NextResponse.json({ error: "Missing name or s3_key" }, { status: 400 });
-    }
-
-    console.log(`Indexing face for ${name} from ${s3_key}`);
-    console.log(`Using region ${getAwsRegion()} and bucket ${BUCKET_NAME}`);
-
-    const rekognition = getRekognitionClient();
-
-    // 1. Index Face in Rekognition
-    const command = new IndexFacesCommand({
-      CollectionId: COLLECTION_ID,
-      Image: {
-        S3Object: {
-          Bucket: BUCKET_NAME,
-          Name: s3_key,
-        },
+    const payload = await request.text();
+    const response = await fetch(lambdaUrl, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
       },
-      ExternalImageId: name.replace(/\s+/g, "_"), // Simple sanitation
-      DetectionAttributes: ["ALL"],
-      MaxFaces: 1,
-      QualityFilter: "AUTO",
+      body: payload,
+      cache: "no-store",
     });
+    const body = await response.text();
 
-    const response = await rekognition.send(command);
-
-    if (!response.FaceRecords || response.FaceRecords.length === 0) {
-      return NextResponse.json({ error: "No face detected in the image" }, { status: 400 });
-    }
-
-    const faceRecord = response.FaceRecords[0];
-    const faceId = faceRecord.Face?.FaceId;
-
-    if (!faceId) {
-       return NextResponse.json({ error: "Failed to get FaceId" }, { status: 500 });
-    }
-
-    // 2. Save to MongoDB
-    const { db } = await connectToDatabase();
-    const collection = db.collection("known_persons");
-
-    await collection.updateOne(
-      { face_id: faceId },
-      {
-        $set: {
-          name: name,
-          face_id: faceId,
-          image_url: `https://${BUCKET_NAME}.s3.amazonaws.com/${s3_key}`,
-          registered_at: new Date(),
-        },
+    return new NextResponse(body, {
+      status: response.status,
+      headers: {
+        "Content-Type": "application/json",
       },
-      { upsert: true }
-    );
-
-    return NextResponse.json({ 
-        success: true, 
-        message: `Registered ${name}`, 
-        faceId 
     });
-
   } catch (error) {
-    console.error("Registration error:", error);
-    return NextResponse.json({ 
-      error: error instanceof Error ? error.message : "Internal Server Error",
-      details: String(error)
-    }, { status: 500 });
+    console.error("Registration proxy error:", error);
+    return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
   }
 }

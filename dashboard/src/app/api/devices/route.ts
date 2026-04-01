@@ -1,34 +1,26 @@
 import { NextResponse } from "next/server";
-import { connectToDatabase, DeviceStatus } from "@/lib/mongodb";
 
-const OFFLINE_THRESHOLD_MS = 90 * 1000;
+const lambdaUrl = process.env.NEXT_PUBLIC_LAMBDA_MANAGE_FACES_URL;
 
 export async function GET() {
+  if (!lambdaUrl) {
+    return NextResponse.json({ error: "ManageFaces URL is not configured" }, { status: 500 });
+  }
+
   try {
-    const { db } = await connectToDatabase();
-    const collection = db.collection<DeviceStatus>("device_status");
-
-    const devices = await collection.find({}).sort({ last_seen: -1 }).toArray();
-    const now = Date.now();
-
-    const serializedDevices = devices.map((device) => {
-      const lastSeen = device.last_seen ? new Date(device.last_seen) : null;
-      const isOnline = lastSeen ? now - lastSeen.getTime() <= OFFLINE_THRESHOLD_MS : false;
-
-      return {
-        ...device,
-        _id: device._id.toString(),
-        last_seen: device.last_seen,
-        last_capture_at: device.last_capture_at ?? null,
-        last_upload_ok_at: device.last_upload_ok_at ?? null,
-        updated_at: device.updated_at ?? null,
-        is_online: isOnline,
-      };
+    const response = await fetch(`${lambdaUrl}?action=devices`, {
+      cache: "no-store",
     });
+    const body = await response.text();
 
-    return NextResponse.json({ devices: serializedDevices });
+    return new NextResponse(body, {
+      status: response.status,
+      headers: {
+        "Content-Type": "application/json",
+      },
+    });
   } catch (error) {
-    console.error("Device status error:", error);
+    console.error("Device proxy error:", error);
     return NextResponse.json({ error: "Device status error" }, { status: 500 });
   }
 }

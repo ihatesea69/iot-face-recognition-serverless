@@ -1,1 +1,2 @@
-pymongo>=4.6.0
+# No third-party dependencies are required.
+# boto3 and botocore are available in the Lambda runtime.
