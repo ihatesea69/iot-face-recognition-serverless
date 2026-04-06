@@ -47,17 +47,27 @@ Dự án xây dựng hệ thống an ninh nhà ở thông minh với khả năng
 
 ## 🏗️ Kiến trúc hệ thống
 
-![System Architecture](docs/assets/System_Architecture.jpg)
+### Overview architecture
+
+![Overview Architecture](docs/assets/overview-architecture.png)
+
+*Luồng tổng quan từ camera, Raspberry Pi, AWS Cloud Services đến dashboard giám sát và Telegram.*
+
+### Detailed architecture
+
+![Detailed Architecture](docs/assets/detail-home-security-system-architecture.png)
+
+*Luồng chi tiết giữa `ManageFaces`, `ProcessImage`, `DeviceAlertMonitor`, Amazon S3, Amazon Rekognition, Amazon DynamoDB và Next.js dashboard.*
 
 Hệ thống theo mô hình **Event-Driven Serverless Architecture**:
 
-1. **Edge Layer**: Raspberry Pi 3 Model B+ điều khiển camera, chụp ảnh và upload lên **Amazon S3**
-2. **Event Layer**: S3 Event Notifications trigger **AWS Lambda** tự động
-3. **Processing Layer**:
-   - `ProcessImage`: Gọi **Amazon Rekognition** để nhận diện và so sánh khuôn mặt
-   - `ManageFaces`: Xử lý đăng ký khuôn mặt mới và tạo presigned URLs
-4. **Data Layer**: Lưu trữ metadata, thiết bị và người quen trong **Amazon DynamoDB**
-5. **Presentation Layer**: **Next.js** Dashboard triển khai trên **AWS Amplify Hosting**
+1. **Edge Layer**: Raspberry Pi 3 Model B+ điều khiển webcam, chụp ảnh bằng FFmpeg/v4l2 và gửi heartbeat định kỳ
+2. **Upload/API Layer**: `ManageFaces` cấp **presigned POST** để Pi và web simulator upload ảnh trực tiếp lên **Amazon S3**
+3. **Event Processing Layer**:
+   - `ProcessImage`: được kích hoạt bởi S3 Event, gọi **Amazon Rekognition** để nhận diện và phân loại sự kiện
+   - `DeviceAlertMonitor`: được chạy theo lịch để kiểm tra heartbeat và phát hiện thiết bị offline
+4. **Data Layer**: lưu detection events, known persons và device status trong **Amazon DynamoDB**
+5. **Presentation & Alerting Layer**: **Next.js** Dashboard triển khai trên **AWS Amplify Hosting** và **Telegram** để gửi cảnh báo
 
 ## ✨ Tính năng chính
 

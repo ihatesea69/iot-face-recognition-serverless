@@ -6,7 +6,7 @@
     <title>IoT Face Recognition | Hệ Thống An Ninh Thông Minh</title>
     <meta
       name="description"
-      content="Hệ thống an ninh nhà ở thông minh với Raspberry Pi, AWS Lambda, và Amazon Rekognition."
+      content="Hệ thống an ninh nhà ở thông minh với Raspberry Pi, AWS Lambda, Amazon Rekognition, Amazon DynamoDB và Telegram alert."
     />
 
     <!-- Fonts -->
@@ -111,10 +111,10 @@
           </div>
           <div class="feature-card glass-card">
             <div class="icon"><i class="fa-solid fa-microchip"></i></div>
-            <h3>Edge Intelligence</h3>
+            <h3>Edge Capture + Heartbeat</h3>
             <p>
-              Raspberry Pi với cảm biến PIR phát hiện chuyển động, 
-              tối ưu bandwidth khi upload.
+              Raspberry Pi chụp ảnh bằng FFmpeg, upload bằng presigned POST
+              và gửi heartbeat để backend theo dõi trạng thái thiết bị.
             </p>
           </div>
           <div class="feature-card glass-card">
@@ -150,18 +150,34 @@
         <h2 class="section-title">
           Kiến trúc <span class="highlight">Hệ thống</span>
         </h2>
-        <div class="arch-diagram glass-card">
-          <img
-            src="assets/System_Architecture.jpg"
-            alt="System Architecture"
-          />
+        <div class="arch-diagram-grid">
+          <figure class="arch-card glass-card">
+            <img
+              src="assets/overview-architecture.png"
+              alt="Overview architecture"
+            />
+            <figcaption>
+              Luồng tổng quan từ webcam, Raspberry Pi, AWS Cloud Services đến
+              dashboard và Telegram.
+            </figcaption>
+          </figure>
+          <figure class="arch-card glass-card">
+            <img
+              src="assets/detail-home-security-system-architecture.png"
+              alt="Detailed architecture"
+            />
+            <figcaption>
+              Luồng chi tiết giữa ManageFaces, ProcessImage,
+              DeviceAlertMonitor, S3, Rekognition, DynamoDB và Next.js.
+            </figcaption>
+          </figure>
         </div>
         <div class="tech-stack">
           <div class="tech-item">
             <i class="fa-brands fa-aws"></i> AWS Lambda
           </div>
           <div class="tech-item">
-            <i class="fa-solid fa-database"></i> MongoDB Atlas
+            <i class="fa-solid fa-database"></i> Amazon DynamoDB
           </div>
           <div class="tech-item">
             <i class="fa-brands fa-react"></i> Next.js
@@ -174,6 +190,9 @@
           </div>
           <div class="tech-item">
             <i class="fa-solid fa-brain"></i> Rekognition AI
+          </div>
+          <div class="tech-item">
+            <i class="fa-brands fa-telegram"></i> Telegram Alert
           </div>
         </div>
       </div>
