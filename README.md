@@ -42,6 +42,7 @@ Dự án xây dựng hệ thống an ninh nhà ở thông minh với khả năng
 - **Nhận diện khuôn mặt** với Amazon Rekognition
 - **Phân biệt người quen/người lạ** trong thời gian thực (<2 giây)
 - **Cảnh báo** khi phát hiện người lạ xâm nhập
+- **Gửi Telegram alert** khi có người lạ, thiết bị lỗi, mất heartbeat hoặc phục hồi
 - **Kiến trúc Serverless** - chi phí thấp, tự động scale
 
 ## 🏗️ Kiến trúc hệ thống
@@ -68,6 +69,7 @@ Hệ thống theo mô hình **Event-Driven Serverless Architecture**:
 | 🔒 **Bảo mật cao** | IAM policies nghiêm ngặt, dữ liệu mã hóa |
 | 👤 **Quản lý danh tính** | Đăng ký/xóa người quen qua web interface |
 | 🎭 **Phát hiện người lạ** | Tự động cảnh báo khi phát hiện stranger |
+| 📲 **Telegram notifications** | Cảnh báo người lạ, lỗi thiết bị, offline và recovery qua Telegram Bot |
 | 🧪 **Web Simulator** | Test pipeline mà không cần hardware |
 
 ## 🛠️ Technology Stack
@@ -99,6 +101,7 @@ Hệ thống theo mô hình **Event-Driven Serverless Architecture**:
 - AWS Account với credentials đã cấu hình
 - Node.js 18+ và Python 3.10+
 - AWS Amplify app để deploy dashboard production
+- Telegram bot và chat/group đích nếu muốn bật cảnh báo tin nhắn
 
 ### 1. Triển khai Infrastructure
 
@@ -107,6 +110,12 @@ cd infrastructure
 sam build
 sam deploy --guided
 ```
+
+Nếu muốn bật cảnh báo Telegram ngay từ đầu, nhập thêm:
+
+- `TelegramBotToken`: bot token lấy từ `@BotFather`
+- `TelegramChatId`: chat ID hoặc group chat ID nhận cảnh báo
+- `DeviceOfflineThresholdSec`: số giây không có heartbeat trước khi coi là offline
 
 ### 2. Chạy Dashboard
 
@@ -144,6 +153,27 @@ pip install -r requirements.txt
 # Cấu hình config.py với AWS credentials
 python main.py
 ```
+
+## 🔔 Telegram notifications
+
+Hệ thống có thể gửi cảnh báo Telegram cho 4 trường hợp:
+
+- phát hiện `stranger`
+- Pi gửi heartbeat với `status=degraded`
+- Pi mất heartbeat quá `DEVICE_OFFLINE_THRESHOLD_SEC`
+- Pi phục hồi về `online`
+
+Thiết lập:
+
+1. Tạo bot bằng `@BotFather` và lấy `TelegramBotToken`
+2. Nhắn bot trước hoặc thêm bot vào group cần nhận cảnh báo
+3. Lấy `TelegramChatId`
+4. Truyền `TelegramBotToken`, `TelegramChatId`, `DeviceOfflineThresholdSec` vào `sam deploy --guided`
+
+Lưu ý:
+
+- Không đặt `TELEGRAM_BOT_TOKEN` vào bất kỳ biến `NEXT_PUBLIC_*` nào
+- Telegram lỗi sẽ không làm fail pipeline nhận diện hay heartbeat
 
 ## 📂 Cấu trúc dự án
 

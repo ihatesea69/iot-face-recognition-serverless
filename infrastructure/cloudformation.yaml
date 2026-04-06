@@ -29,6 +29,22 @@ Parameters:
       - prod
     Description: Deployment environment
 
+  TelegramBotToken:
+    Type: String
+    Default: ""
+    NoEcho: true
+    Description: Telegram bot token used to send security notifications
+
+  TelegramChatId:
+    Type: String
+    Default: ""
+    Description: Telegram chat ID or group chat ID that receives alerts
+
+  DeviceOfflineThresholdSec:
+    Type: Number
+    Default: 90
+    Description: Number of seconds without heartbeat before a device is considered offline
+
 # ==============================================================================
 # RESOURCES
 # ==============================================================================
@@ -198,6 +214,8 @@ Resources:
         Variables:
           REKOGNITION_COLLECTION_ID: !Ref RekognitionCollectionId
           DYNAMODB_DETECTIONS_TABLE: !Ref DetectionEventsTable
+          TELEGRAM_BOT_TOKEN: !Ref TelegramBotToken
+          TELEGRAM_CHAT_ID: !Ref TelegramChatId
           ENVIRONMENT: !Ref Environment
       # S3 Trigger - fires when .jpg uploaded to captures/ prefix
       Events:
@@ -236,8 +254,12 @@ Resources:
         Variables:
           REKOGNITION_COLLECTION_ID: !Ref RekognitionCollectionId
           S3_BUCKET_NAME: !Ref S3BucketName
+          DYNAMODB_DETECTIONS_TABLE: !Ref DetectionEventsTable
           DYNAMODB_KNOWN_PERSONS_TABLE: !Ref KnownPersonsTable
           DYNAMODB_DEVICE_STATUS_TABLE: !Ref DeviceStatusTable
+          TELEGRAM_BOT_TOKEN: !Ref TelegramBotToken
+          TELEGRAM_CHAT_ID: !Ref TelegramChatId
+          DEVICE_OFFLINE_THRESHOLD_SEC: !Ref DeviceOfflineThresholdSec
           ENVIRONMENT: !Ref Environment
       # Public HTTP endpoint (no API Gateway needed)
       FunctionUrlConfig:
@@ -260,6 +282,39 @@ Resources:
       Action: lambda:InvokeFunctionUrl
       Principal: "*"
       FunctionUrlAuthType: NONE
+
+  # ============================================================================
+  # 6. LAMBDA FUNCTION: DeviceAlertMonitor
+  #    Runs on a schedule to detect offline devices based on missed heartbeats
+  # ============================================================================
+  DeviceAlertMonitorFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub "HomeSecurity_DeviceAlertMonitor_${Environment}"
+      Description: Scheduled monitor that sends offline device alerts to Telegram
+      Runtime: python3.12
+      Handler: handler.handler
+      CodeUri: ../lambda/device_alert_monitor/
+      Role: !GetAtt LambdaExecutionRole.Arn
+      Timeout: 30
+      MemorySize: 256
+      Architectures:
+        - arm64
+      Environment:
+        Variables:
+          DYNAMODB_DEVICE_STATUS_TABLE: !Ref DeviceStatusTable
+          TELEGRAM_BOT_TOKEN: !Ref TelegramBotToken
+          TELEGRAM_CHAT_ID: !Ref TelegramChatId
+          DEVICE_OFFLINE_THRESHOLD_SEC: !Ref DeviceOfflineThresholdSec
+          ENVIRONMENT: !Ref Environment
+      Events:
+        DeviceOfflineMonitor:
+          Type: Schedule
+          Properties:
+            Schedule: rate(1 minute)
+            Name: !Sub "HomeSecurity-DeviceOfflineMonitor-${Environment}"
+            Description: Check for devices that missed heartbeat updates
+            Enabled: true
 
 # ==============================================================================
 # OUTPUTS - Important values for dashboard configuration

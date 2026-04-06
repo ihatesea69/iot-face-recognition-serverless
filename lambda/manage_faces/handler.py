@@ -12,6 +12,8 @@ import boto3
 from boto3.dynamodb.conditions import Key
 from botocore.exceptions import ClientError
 
+from telegram_notify import send_telegram_message
+
 
 REKOGNITION_COLLECTION_ID = os.environ.get("REKOGNITION_COLLECTION_ID", "home-security-faces")
 S3_BUCKET_NAME = os.environ.get("S3_BUCKET_NAME", "iot-face-recognition-bucket")
@@ -24,6 +26,7 @@ DYNAMODB_DEVICE_STATUS_TABLE = os.environ.get(
 DYNAMODB_DETECTIONS_TABLE = os.environ.get(
     "DYNAMODB_DETECTIONS_TABLE", "home-security-detections-prod"
 )
+DEVICE_OFFLINE_THRESHOLD_SEC = int(os.environ.get("DEVICE_OFFLINE_THRESHOLD_SEC", "90"))
 
 rekognition = boto3.client("rekognition")
 s3 = boto3.client("s3")
@@ -74,7 +77,7 @@ def file_extension_from_type(file_type):
 
 
 def build_device_capture_key(device_id, file_type):
-    timestamp = datetime.utcnow().strftime("%Y%m%d_%H%M%S")
+    timestamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
     safe_device_id = sanitize_device_id(device_id)
     return f"captures/{safe_device_id}/{timestamp}.{file_extension_from_type(file_type)}"
 
@@ -94,6 +97,86 @@ def normalize_number(value):
             return int(value)
         return float(value)
     return value
+
+
+def iso_utc_now():
+    return datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+
+
+def build_alert_error_key(status, last_error):
+    value = (last_error or status or "unknown").strip()
+    return value[:500]
+
+
+def build_device_alert_message(
+    *,
+    title,
+    device_id,
+    status,
+    updated_at,
+    last_seen=None,
+    last_error=None,
+):
+    lines = [
+        title,
+        f"Thiet bi: {device_id}",
+        f"Trang thai: {status}",
+        f"Cap nhat luc (UTC): {updated_at}",
+    ]
+    if last_seen:
+        lines.append(f"Last seen (UTC): {last_seen}")
+    if last_error:
+        lines.append(f"Loi gan nhat: {last_error}")
+    return "\n".join(lines)
+
+
+def evaluate_heartbeat_alert(existing, item, now_iso):
+    alert_state = existing.get("alert_state") or "online"
+    last_alert_at = existing.get("last_alert_at")
+    last_alert_error_key = existing.get("last_alert_error_key")
+
+    next_status = item["status"]
+    next_error_key = build_alert_error_key(next_status, item.get("last_error"))
+    notification_message = None
+
+    if next_status == "online":
+        next_alert_state = "online"
+        next_alert_error_key = None
+        next_last_alert_at = last_alert_at
+
+        if alert_state in ("degraded", "offline"):
+            next_last_alert_at = now_iso
+            notification_message = build_device_alert_message(
+                title="THIET BI PHUC HOI",
+                device_id=item["device_id"],
+                status="online",
+                updated_at=now_iso,
+                last_seen=item.get("last_seen"),
+            )
+    else:
+        next_alert_state = "degraded"
+        next_alert_error_key = next_error_key
+        next_last_alert_at = last_alert_at
+
+        if alert_state != "degraded" or last_alert_error_key != next_error_key:
+            next_last_alert_at = now_iso
+            notification_message = build_device_alert_message(
+                title="CANH BAO THIET BI",
+                device_id=item["device_id"],
+                status="degraded",
+                updated_at=now_iso,
+                last_seen=item.get("last_seen"),
+                last_error=item.get("last_error"),
+            )
+
+    return (
+        {
+            "alert_state": next_alert_state,
+            "last_alert_at": next_last_alert_at,
+            "last_alert_error_key": next_alert_error_key,
+        },
+        notification_message,
+    )
 
 
 def ensure_collection_exists():
@@ -130,7 +213,7 @@ def index_face(s3_key, person_name):
             "name": person_name,
             "s3_key": s3_key,
             "image_url": image_url,
-            "registered_at": datetime.utcnow().isoformat() + "Z",
+            "registered_at": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
         }
     )
 
@@ -186,19 +269,25 @@ def list_detections(limit=50):
 
 
 def list_devices():
-    now = datetime.utcnow()
+    now = datetime.now(timezone.utc).replace(tzinfo=None)
     response = get_device_status_table().scan()
     devices = response.get("Items", [])
     devices.sort(key=lambda item: item.get("last_seen", ""), reverse=True)
     payload = []
     for item in devices:
         last_seen = to_date(item.get("last_seen"))
-        is_online = bool(last_seen and (now - last_seen).total_seconds() <= 90)
+        is_online = bool(
+            last_seen and (now - last_seen).total_seconds() <= DEVICE_OFFLINE_THRESHOLD_SEC
+        )
+        alert_state = item.get("alert_state")
+        if not alert_state:
+            alert_state = "offline" if not is_online else item.get("status", "degraded")
         payload.append(
             {
                 "_id": item["device_id"],
                 "device_id": item["device_id"],
                 "status": item.get("status", "degraded"),
+                "alert_state": alert_state,
                 "capture_interval_sec": normalize_number(item.get("capture_interval_sec")),
                 "camera_device": item.get("camera_device"),
                 "last_capture_at": item.get("last_capture_at"),
@@ -258,7 +347,7 @@ def generate_presigned_url(file_type, prefix="faces", object_name=None):
 
 def upsert_device_status(payload):
     device_id = sanitize_device_id(payload.get("device_id"))
-    now_iso = datetime.utcnow().isoformat() + "Z"
+    now_iso = iso_utc_now()
     table = get_device_status_table()
 
     existing = table.get_item(Key={"device_id": device_id}).get("Item", {})
@@ -275,8 +364,25 @@ def upsert_device_status(payload):
         "created_at": existing.get("created_at", now_iso),
     }
 
+    alert_update, notification_message = evaluate_heartbeat_alert(existing, item, now_iso)
+    item.update(alert_update)
     table.put_item(Item=item)
-    return {"ok": True, "device_id": device_id, "last_seen": now_iso}
+
+    if notification_message:
+        try:
+            if send_telegram_message(notification_message):
+                print(f"Sent Telegram device alert for {device_id}")
+            else:
+                print(f"Telegram device alert skipped or failed for {device_id}")
+        except Exception as exc:  # pragma: no cover - defensive logging path
+            print(f"Telegram device alert error for {device_id}: {exc}")
+
+    return {
+        "ok": True,
+        "device_id": device_id,
+        "last_seen": now_iso,
+        "alert_state": item.get("alert_state"),
+    }
 
 
 def handler(event, context):

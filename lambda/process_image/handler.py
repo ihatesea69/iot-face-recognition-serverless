@@ -6,11 +6,13 @@ Stores detection results in DynamoDB.
 
 import json
 import os
-from datetime import datetime
+from datetime import datetime, timezone
 from decimal import Decimal
 import uuid
 
 import boto3
+
+from telegram_notify import send_telegram_message
 
 # Environment variables
 REKOGNITION_COLLECTION_ID = os.environ.get("REKOGNITION_COLLECTION_ID", "home-security-faces")
@@ -72,7 +74,7 @@ def build_detection_result(result: dict) -> dict:
 
 
 def store_detection_event(bucket: str, key: str, image_url: str, detection_result: dict):
-    timestamp = datetime.utcnow().isoformat() + "Z"
+    timestamp = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
     event_id = uuid.uuid4().hex
     item = {
         "pk": "FEED",
@@ -93,6 +95,29 @@ def store_detection_event(bucket: str, key: str, image_url: str, detection_resul
     return event_id
 
 
+def build_stranger_alert_message(
+    bucket: str,
+    key: str,
+    image_url: str,
+    processed_at: str,
+    event_id: str | None,
+) -> str:
+    """Format a Telegram message for a stranger detection event."""
+    device_id = extract_device_id(key)
+    lines = [
+        "CANH BAO AN NINH",
+        "Phat hien nguoi la trong khung hinh moi.",
+        f"Thoi gian (UTC): {processed_at}",
+        f"Thiet bi: {device_id}",
+        f"S3 bucket: {bucket}",
+        f"S3 key: {key}",
+        f"Anh: {image_url}",
+    ]
+    if event_id:
+        lines.append(f"Event ID: {event_id}")
+    return "\n".join(lines)
+
+
 def handler(event, context):
     """Lambda handler for S3 trigger."""
     print(f"Event: {json.dumps(event)}")
@@ -108,6 +133,7 @@ def handler(event, context):
 
     result = search_face(bucket, key)
     detection_result = build_detection_result(result)
+    processed_at = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
 
     event_id = None
     try:
@@ -115,6 +141,22 @@ def handler(event, context):
         print(f"Stored detection event: {event_id}")
     except Exception as e:
         print(f"DynamoDB error: {e}")
+
+    if detection_result["type"] == "stranger":
+        try:
+            message = build_stranger_alert_message(
+                bucket=bucket,
+                key=key,
+                image_url=image_url,
+                processed_at=processed_at,
+                event_id=event_id,
+            )
+            if send_telegram_message(message):
+                print("Sent Telegram stranger alert")
+            else:
+                print("Telegram stranger alert skipped or failed")
+        except Exception as e:
+            print(f"Telegram notification error: {e}")
 
     return {
         "statusCode": 200,

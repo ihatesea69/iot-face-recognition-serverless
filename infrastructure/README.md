@@ -56,6 +56,9 @@ Nhập các thông số khi được hỏi:
 - **S3BucketName**: `your-unique-bucket-name` (phải unique toàn cầu)
 - **RekognitionCollectionId**: `home-security-faces`
 - **Environment**: `dev` hoặc `prod`
+- **TelegramBotToken**: bot token từ `@BotFather` (để trống nếu chưa bật notifications)
+- **TelegramChatId**: chat ID hoặc group ID nhận cảnh báo
+- **DeviceOfflineThresholdSec**: ngưỡng heartbeat để coi thiết bị offline
 
 ### Bước 3: Deploy các lần sau
 
@@ -97,6 +100,8 @@ DYNAMODB_DETECTIONS_TABLE=home-security-detections-prod
 DYNAMODB_KNOWN_PERSONS_TABLE=home-security-known-persons-prod
 DYNAMODB_DEVICE_STATUS_TABLE=home-security-device-status-prod
 ```
+
+`TelegramBotToken` và `TelegramChatId` là backend config/secrets, không được đưa vào `dashboard/.env.local` dưới dạng `NEXT_PUBLIC_*`.
 
 ## 🌐 Deploy Frontend lên AWS Amplify
 
@@ -142,6 +147,7 @@ CloudFormation template sẽ tạo:
 | `LambdaExecutionRole` | IAM Role | Permissions cho Lambda |
 | `ProcessImageFunction` | Lambda | Xử lý ảnh, gọi Rekognition |
 | `ManageFacesFunction` | Lambda + URL | API quản lý faces |
+| `DeviceAlertMonitorFunction` | Lambda + Schedule | Quét heartbeat để phát hiện offline và gửi Telegram alert |
 
 ## 🔄 Migration từ MongoDB
 
